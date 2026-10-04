@@ -1,0 +1,46 @@
+GRAND COUNTRY ROLEPLAY HUD - INSTALL
+
+1. Extract folder:
+   gcr-hud-fixed
+
+2. Rename optional menjadi:
+   gcr-hud
+
+3. Pindahkan ke:
+   resources/[standalone]/gcr-hud
+
+4. server.cfg:
+   ensure gcr-hud
+
+5. Jika ingin menggantikan qb-hud visual lama:
+   # ensure qb-hud
+   ensure gcr-hud
+
+   Catatan:
+   Kalau script lain bergantung pada qb-hud, kamu boleh tetap menjalankan qb-hud
+   tetapi sembunyikan UI lamanya. Resource GCR HUD sudah mendengarkan event
+   hud:client:UpdateNeeds dan hud:client:UpdateStress.
+
+6. Hunger / thirst:
+   Default GCR HUD mempunyai fallback needs decay sendiri:
+   Config.NeedsDecay.Enabled = true
+
+   Kalau qb-core kamu sudah punya hunger/thirst decay aktif, ubah menjadi:
+   Config.NeedsDecay.Enabled = false
+
+7. Atur kecepatan turun hunger/thirst di config.lua:
+   HungerDecrease = 0.8
+   ThirstDecrease = 1.0
+   Interval = 60000
+
+8. Ganti logo:
+   html/images/logo.png
+
+9. Hide/show HUD:
+   F10
+
+10. Setelah install:
+    refresh
+    ensure gcr-hud
+
+    atau restart server.
