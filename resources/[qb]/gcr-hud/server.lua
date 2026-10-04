@@ -1,62 +1,73 @@
-local QBCore = exports['qb-core']:GetCoreObject()
+local QBCore = exports['qb-core']:GetCoreObject({ 'Functions', 'Commands' })
+local ResetStress = false
 
-local function getQBPlayers()
-    if QBCore.Functions.GetQBPlayers then
-        return QBCore.Functions.GetQBPlayers()
-    end
-
-    local result = {}
-    if QBCore.Functions.GetPlayers then
-        for _, src in pairs(QBCore.Functions.GetPlayers()) do
-            local Player = QBCore.Functions.GetPlayer(src)
-            if Player then
-                result[src] = Player
-            end
-        end
-    end
-
-    return result
-end
-
-local function getOnlineCount()
-    local count = 0
-    for _ in pairs(getQBPlayers()) do
-        count = count + 1
-    end
-    return count
-end
-
-RegisterNetEvent('gcr-hud:server:requestOnline', function()
-    TriggerClientEvent('gcr-hud:client:setOnline', source, getOnlineCount())
+QBCore.Commands.Add('cash', 'Check Cash Balance', {}, false, function(source, _)
+    local Player = exports['qb-core']:GetPlayer(source)
+    local cashamount = Player.PlayerData.money.cash
+    TriggerClientEvent('hud:client:ShowAccounts', source, 'cash', cashamount)
 end)
 
--- Fallback needs system.
--- Ini yang memastikan hunger / thirst benar-benar turun walaupun resource HUD lama dimatikan.
-CreateThread(function()
-    while true do
-        Wait(Config.NeedsDecay.Interval)
+QBCore.Commands.Add('bank', 'Check Bank Balance', {}, false, function(source, _)
+    local Player = exports['qb-core']:GetPlayer(source)
+    local bankamount = Player.PlayerData.money.bank
+    TriggerClientEvent('hud:client:ShowAccounts', source, 'bank', bankamount)
+end)
 
-        if Config.NeedsDecay.Enabled then
-            local players = getQBPlayers()
+QBCore.Commands.Add('dev', 'Enable/Disable developer Mode', {}, false, function(source, _)
+    TriggerClientEvent('qb-admin:client:ToggleDevmode', source)
+end, 'admin')
 
-            for _, Player in pairs(players) do
-                if Player and Player.PlayerData then
-                    local metadata = Player.PlayerData.metadata or {}
-                    local oldHunger = tonumber(metadata.hunger) or 100.0
-                    local oldThirst = tonumber(metadata.thirst) or 100.0
-
-                    local hunger = math.max(0.0, math.min(100.0, oldHunger - Config.NeedsDecay.HungerDecrease))
-                    local thirst = math.max(0.0, math.min(100.0, oldThirst - Config.NeedsDecay.ThirstDecrease))
-
-                    Player.Functions.SetMetaData('hunger', hunger)
-                    Player.Functions.SetMetaData('thirst', thirst)
-
-                    local src = Player.PlayerData.source
-                    if src then
-                        TriggerClientEvent('gcr-hud:client:updateNeeds', src, hunger, thirst)
-                    end
-                end
-            end
+RegisterNetEvent('hud:server:GainStress', function(amount)
+    if Config.DisableStress then return end
+    local src = source
+    local Player = exports['qb-core']:GetPlayer(src)
+    local Job = Player.PlayerData.job.name
+    local JobType = Player.PlayerData.job.type
+    local newStress
+    if not Player or Config.WhitelistedJobs[JobType] or Config.WhitelistedJobs[Job] then return end
+    if not ResetStress then
+        if not Player.PlayerData.metadata['stress'] then
+            Player.PlayerData.metadata['stress'] = 0
         end
+        newStress = Player.PlayerData.metadata['stress'] + amount
+        if newStress <= 0 then newStress = 0 end
+    else
+        newStress = 0
     end
+    if newStress > 100 then
+        newStress = 100
+    end
+    Player.SetMetaData('stress', newStress)
+    TriggerClientEvent('hud:client:UpdateStress', src, newStress)
+    TriggerClientEvent('QBCore:Notify', src, Lang:t('notify.stress_gain'), 'error', 1500)
+end)
+
+RegisterNetEvent('hud:server:RelieveStress', function(amount)
+    if Config.DisableStress then return end
+    local src = source
+    if type(amount) ~= 'number' then return end
+    amount = math.floor(amount)
+    if amount <= 0 or amount > 100 then return end
+    local Player = exports['qb-core']:GetPlayer(src)
+    local newStress
+    if not Player then return end
+    if not ResetStress then
+        if not Player.PlayerData.metadata['stress'] then
+            Player.PlayerData.metadata['stress'] = 0
+        end
+        newStress = Player.PlayerData.metadata['stress'] - amount
+        if newStress <= 0 then newStress = 0 end
+    else
+        newStress = 0
+    end
+    if newStress > 100 then
+        newStress = 100
+    end
+    Player.SetMetaData('stress', newStress)
+    TriggerClientEvent('hud:client:UpdateStress', src, newStress)
+    TriggerClientEvent('QBCore:Notify', src, Lang:t('notify.stress_removed'))
+end)
+
+QBCore.Functions.CreateCallback('hud:server:getMenu', function(_, cb)
+    cb(Config.Menu)
 end)

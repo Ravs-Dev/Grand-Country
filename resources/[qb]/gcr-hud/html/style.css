@@ -138,7 +138,7 @@ html, body {
 }
 
 .health-fill {
-    background: linear-gradient(90deg, #ff365f, #ff4f76);
+    background: linear-gradient(90deg, #ffc84d, #ffc84d);
     box-shadow: 0 0 8px rgba(255, 54, 95, .75);
 }
 
