@@ -380,8 +380,19 @@ QBCore.Functions.CreateCallback('qb-inventory:server:attemptPurchase', function(
 
     local price = shopInfo.items[itemInfo.slot].price * amount
     if Player.PlayerData.money.cash >= price then
-        Player.Functions.RemoveMoney('cash', price, 'shop-purchase')
-        AddItem(source, itemInfo.name, amount, nil, itemInfo.info, 'shop-purchase')
+        if not Player.Functions.RemoveMoney('cash', price, 'shop-purchase') then
+            cb(false)
+            return
+        end
+
+        if not AddItem(source, itemInfo.name, amount, nil, itemInfo.info, 'shop-purchase') then
+            -- Do not charge a player when the inventory add failed.
+            Player.Functions.AddMoney('cash', price, 'shop-purchase-refund')
+            TriggerClientEvent('QBCore:Notify', source, Lang:t('notify.canthold'), 'error')
+            cb(false)
+            return
+        end
+
         shopInfo.items[itemInfo.slot].amount -= amount
         TriggerEvent('qb-shops:server:UpdateShopItems', shop, itemInfo, amount)
         cb(true)

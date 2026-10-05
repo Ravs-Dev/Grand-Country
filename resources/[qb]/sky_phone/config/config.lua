@@ -81,16 +81,16 @@ Config.CustomTones = {
 
 -- Core, framework and device
 Config.Bridge = {
-    Framework = "auto", -- auto, esx, qbox, qb
+    Framework = "qb", -- auto, esx, qbox, qb
     -- auto, ak47, codem, core, jaksam, jpr, lj, mf, one, origen, ox, ps, qb, qs, smx, tgiann, hex, esx
     -- Compatibility aliases: qb-inv -> qb, qbox -> ox
-    Inventory = "auto",
+    Inventory = "qb",
     Locale = "en",
     CallbackTimeout = 15000,
     Debug = false, -- true: show debug/info output; warnings and errors are always shown
 }
 
-Config.Command = "phone"
+Config.Command = "iphone"
 
 Config.Phone = {
     -- Applies to phone use, ringing/active calls (including video), streams and radio.
@@ -143,7 +143,7 @@ Config.Apps = {
     ["neon-drop"] = true,
     notes = true,
     ["number-merge"] = true,
-    phone = true,
+    iphone = true,
     photos = true,
     picstagram = true,
     radio = true,

@@ -361,8 +361,10 @@ exports('GetItemCount', GetItemCount)
 --- @return boolean - Returns true if the item can be added, false otherwise.
 --- @return string|nil - Returns a string indicating the reason why the item cannot be added (e.g., 'weight' or 'slots'), or nil if it can be added.
 function CanAddItem(identifier, item, amount)
-    local Player = exports['qb-core']:GetPlayer(identifier)
+    amount = tonumber(amount) or 1
+    if amount <= 0 then return false end
 
+    local Player = exports['qb-core']:GetPlayer(tonumber(identifier) or identifier)
     local itemData = QBCore.Shared.Items[item:lower()]
     if not itemData then return false end
 
@@ -379,7 +381,9 @@ function CanAddItem(identifier, item, amount)
     end
 
     if not inventory then
-        print('CanAddItem: Inventory not found')
+        print(('CanAddItem: Inventory not found | identifier=%s | item=%s | amount=%s'):format(
+            tostring(identifier), tostring(item), tostring(amount)
+        ))
         return false
     end
 
@@ -389,20 +393,26 @@ function CanAddItem(identifier, item, amount)
         return false, 'weight'
     end
 
-    local slotsUsed, _ = GetSlots(identifier)
+    local slotsUsed, slotsFree = GetSlots(Player and (tonumber(identifier) or identifier) or identifier)
+
+    -- Unique items need one free slot per unit. This prevents iphone x2/x3
+    -- from being created in a single slot.
+    if itemData.unique then
+        if (slotsFree or 0) < amount then
+            return false, 'slots'
+        end
+        return true
+    end
 
     if slotsUsed >= inventory.slots then
         for _, v in pairs(items) do
             if v.name == itemData.name then
-                if itemData.unique then break end
-                print(('CanAddItem: Player %s has no free slots for item %s, but has %d of it already'):format(identifier, itemData.name, v.amount))
-                goto continue
+                print(('CanAddItem: Player %s has no free slots for item %s, but can stack onto an existing slot'):format(identifier, itemData.name))
+                return true
             end
         end
         return false, 'slots'
     end
-
-    ::continue::
 
     return true
 end
@@ -688,13 +698,18 @@ exports('RemoveInventory', RemoveInventory)
 --- @param reason string (optional) The reason for adding the item.
 --- @return boolean Returns true if the item was successfully added, false otherwise.
 function AddItem(identifier, item, amount, slot, info, reason)
+    amount = tonumber(amount) or 1
+    if amount <= 0 then return false end
+
     local itemInfo = QBCore.Shared.Items[item:lower()]
     if not itemInfo then
         print('AddItem: Invalid item')
         return false
     end
+
     local inventory, inventoryWeight, inventorySlots
-    local player = exports['qb-core']:GetPlayer(identifier)
+    local playerIdentifier = tonumber(identifier) or identifier
+    local player = exports['qb-core']:GetPlayer(playerIdentifier)
 
     if player then
         inventory = player.PlayerData.items
@@ -711,7 +726,9 @@ function AddItem(identifier, item, amount, slot, info, reason)
     end
 
     if not inventory then
-        print('AddItem: Inventory not found')
+        print(('AddItem: Inventory not found | identifier=%s | item=%s | amount=%s | resource=%s'):format(
+            tostring(identifier), tostring(item), tostring(amount), tostring(GetInvokingResource() or 'qb-inventory')
+        ))
         return false
     end
 
@@ -721,33 +738,24 @@ function AddItem(identifier, item, amount, slot, info, reason)
         return false
     end
 
-    amount = tonumber(amount) or 1
-    local updated = false
-
-    if not itemInfo.unique then
-        slot = slot or GetFirstSlotByItem(inventory, item)
-        if slot then
-            for _, invItem in pairs(inventory) do
-                if invItem.slot == slot then
-                    invItem.amount = invItem.amount + amount
-                    updated = true
-                    break
-                end
+    local function copyInfo(value)
+        if type(value) ~= 'table' then return {} end
+        local copy = {}
+        for k, v in pairs(value) do
+            if type(v) == 'table' then
+                copy[k] = copyInfo(v)
+            else
+                copy[k] = v
             end
         end
+        return copy
     end
 
-    if not updated then
-        slot = slot or GetFirstFreeSlot(inventory, inventorySlots)
-        if not slot then
-            print('AddItem: No free slot available')
-            return false
-        end
-
-        inventory[slot] = {
+    local function makeItem(targetSlot, targetAmount, targetInfo)
+        local entry = {
             name = item,
-            amount = amount,
-            info = info or {},
+            amount = targetAmount,
+            info = targetInfo or {},
             label = itemInfo.label,
             description = itemInfo.description or '',
             weight = itemInfo.weight,
@@ -756,22 +764,86 @@ function AddItem(identifier, item, amount, slot, info, reason)
             useable = itemInfo.useable,
             image = itemInfo.image,
             shouldClose = itemInfo.shouldClose,
-            slot = slot,
+            slot = targetSlot,
             combinable = itemInfo.combinable
         }
 
         if itemInfo.type == 'weapon' then
-            if not inventory[slot].info.serie then
-                inventory[slot].info.serie = tostring(QBCore.Shared.RandomInt(2) .. QBCore.Shared.RandomStr(3) .. QBCore.Shared.RandomInt(1) .. QBCore.Shared.RandomStr(2) .. QBCore.Shared.RandomInt(3) .. QBCore.Shared.RandomStr(4))
+            if not entry.info.serie then
+                entry.info.serie = tostring(QBCore.Shared.RandomInt(2) .. QBCore.Shared.RandomStr(3) .. QBCore.Shared.RandomInt(1) .. QBCore.Shared.RandomStr(2) .. QBCore.Shared.RandomInt(3) .. QBCore.Shared.RandomStr(4))
             end
-            if not inventory[slot].info.quality then
-                inventory[slot].info.quality = 100
+            if not entry.info.quality then
+                entry.info.quality = 100
             end
+        end
+
+        return entry
+    end
+
+    local usedSlots = {}
+
+    if itemInfo.unique then
+        -- Every unique unit gets its own slot. Reserve all target slots first so
+        -- the operation does not partially add an order.
+        local reserved = {}
+        local requestedSlot = tonumber(slot)
+
+        if requestedSlot then
+            if requestedSlot < 1 or requestedSlot > inventorySlots or inventory[requestedSlot] ~= nil then
+                print('AddItem: Requested slot unavailable for unique item')
+                return false
+            end
+            reserved[requestedSlot] = true
+            usedSlots[#usedSlots + 1] = requestedSlot
+        end
+
+        while #usedSlots < amount do
+            local freeSlot
+            for i = 1, inventorySlots do
+                if inventory[i] == nil and not reserved[i] then
+                    freeSlot = i
+                    break
+                end
+            end
+            if not freeSlot then
+                print('AddItem: Not enough free slots available for unique item')
+                return false
+            end
+            reserved[freeSlot] = true
+            usedSlots[#usedSlots + 1] = freeSlot
+        end
+
+        for _, targetSlot in ipairs(usedSlots) do
+            inventory[targetSlot] = makeItem(targetSlot, 1, copyInfo(info))
+        end
+    else
+        local targetSlot = tonumber(slot) or GetFirstSlotByItem(inventory, item)
+        local updated = false
+
+        if targetSlot and inventory[targetSlot] then
+            if inventory[targetSlot].name:lower() ~= item:lower() then
+                print('AddItem: Requested slot contains a different item')
+                return false
+            end
+            inventory[targetSlot].amount = inventory[targetSlot].amount + amount
+            usedSlots[1] = targetSlot
+            updated = true
+        end
+
+        if not updated then
+            targetSlot = targetSlot or GetFirstFreeSlot(inventory, inventorySlots)
+            if not targetSlot then
+                print('AddItem: No free slot available')
+                return false
+            end
+            inventory[targetSlot] = makeItem(targetSlot, amount, copyInfo(info))
+            usedSlots[1] = targetSlot
         end
     end
 
     if player then player.SetPlayerData('items', inventory) end
-    local invName = player and GetPlayerName(identifier) .. ' (' .. identifier .. ')' or identifier
+
+    local invName = player and GetPlayerName(playerIdentifier) .. ' (' .. tostring(playerIdentifier) .. ')' or tostring(identifier)
     local addReason = reason or 'No reason specified'
     local resourceName = GetInvokingResource() or 'qb-inventory'
     TriggerEvent(
@@ -779,7 +851,7 @@ function AddItem(identifier, item, amount, slot, info, reason)
         'playerinventory',
         'Item Added',
         'green',
-        '**Inventory:** ' .. invName .. ' (Slot: ' .. slot .. ')\n' ..
+        '**Inventory:** ' .. invName .. ' (Slot(s): ' .. table.concat(usedSlots, ', ') .. ')\n' ..
         '**Item:** ' .. item .. '\n' ..
         '**Amount:** ' .. amount .. '\n' ..
         '**Reason:** ' .. addReason .. '\n' ..
