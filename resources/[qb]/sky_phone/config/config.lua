@@ -90,16 +90,16 @@ Config.Bridge = {
     Debug = false, -- true: show debug/info output; warnings and errors are always shown
 }
 
-Config.Command = "phone"
+Config.Command = "iphone"
 
 Config.Phone = {
     -- Applies to phone use, ringing/active calls (including video), streams and radio.
     -- ESX/Qbox/QBCore status and native death/handcuff checks are detected automatically.
     BlockWhenDead = true, -- includes unconscious/laststand; false permits phone/voice use while downed
     BlockWhenCuffed = true, -- false permits phone/voice use while handcuffed
-    Item = "phone",
+    Item = "iphone",
     Unique = true, -- true: data follows each phone item; false: one persistent phone per character; forced false for metadata-free inventories
-    Keybind = "F1", -- default keyboard key; false disables it; existing player rebindings take priority
+    Keybind = "M", -- default keyboard key; false disables it; existing player rebindings take priority
     OpenRequestsPerMinute = 20,
     AllowMovement = true, -- true: game input stays active while the mobile phone is open
     HoldToLook = {
