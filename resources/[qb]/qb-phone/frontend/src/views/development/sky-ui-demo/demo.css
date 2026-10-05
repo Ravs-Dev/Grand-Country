@@ -1,0 +1,97 @@
+.sky-ui-demo-page__scroll {
+  padding-top: 0;
+}
+
+.sky-ui-demo-row {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sky-space-2);
+}
+
+.sky-ui-demo-row--center {
+  justify-content: center;
+}
+
+.sky-ui-demo-stack {
+  min-width: 0;
+  display: grid;
+  gap: var(--sky-space-3);
+}
+
+.sky-ui-demo-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sky-space-3);
+}
+
+.sky-ui-demo-copy {
+  margin: 0;
+}
+
+.sky-ui-demo-media {
+  width: 40px;
+  height: 40px;
+  display: block;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.sky-ui-demo-avatar {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--sky-app-accent-soft);
+  color: var(--sky-app-accent);
+  font-weight: 700;
+}
+
+.sky-ui-demo-fill {
+  width: 100%;
+}
+
+.sky-ui-demo-spacer {
+  height: 360px;
+}
+
+.sky-ui-demo-color-red {
+  --sky-app-accent: #ff3b30;
+  --sky-app-accent-soft: rgba(255, 59, 48, 0.16);
+  --sky-chip-outline-border: #ff3b30;
+  --sky-chip-outline-text: #ff3b30;
+}
+
+.sky-ui-demo-color-green {
+  --sky-app-accent: #4cd964;
+  --sky-app-accent-soft: rgba(76, 217, 100, 0.16);
+  --sky-chip-outline-border: #4cd964;
+  --sky-chip-outline-text: #4cd964;
+}
+
+.sky-ui-demo-color-yellow {
+  --sky-app-accent: #ffcc00;
+  --sky-app-accent-soft: rgba(255, 204, 0, 0.18);
+  --sky-chip-outline-border: #ffcc00;
+  --sky-chip-outline-text: #ffcc00;
+}
+
+.sky-ui-demo-color-purple {
+  --sky-app-accent: #9c27b0;
+  --sky-app-accent-soft: rgba(156, 39, 176, 0.16);
+}
+
+.sky-ui-demo-overlay-page {
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 420px) {
+  .sky-ui-demo-grid {
+    grid-template-columns: 1fr;
+  }
+}

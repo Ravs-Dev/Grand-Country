@@ -1,0 +1,142 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v6
+
+      - name: Validate tag and manifest version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$GITHUB_REF_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must use numeric semantic versions without v: $GITHUB_REF_NAME"
+            exit 1
+          fi
+          manifest_version=$(sed -n "s/^version '\([^']*\)'/\1/p" sky_phone/fxmanifest.lua)
+          if [[ "$manifest_version" != "$GITHUB_REF_NAME" ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match fxmanifest version $manifest_version"
+            exit 1
+          fi
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate, test, and build frontend
+        working-directory: frontend
+        run: |
+          pnpm licenses:check
+          pnpm lint
+          pnpm test
+          pnpm build
+
+      - name: Verify deployable phone resource
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f sky_phone/fxmanifest.lua
+          test -f sky_phone/source/html/index.html
+          test -d sky_phone/source/html/assets
+          cmp LICENSE sky_phone/LICENSE
+          cmp THIRD_PARTY_NOTICES.md sky_phone/THIRD_PARTY_NOTICES.md
+
+      - name: Validate repository contracts
+        run: node .github/scripts/validate-repository.mjs
+
+      - name: Install Lua compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes lua5.4
+
+      - name: Check Lua syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            luac5.4 -p "$file"
+          done < <(find sky_phone tests -type f -name '*.lua' -print0)
+
+      - name: Test Lua resource contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in tests/*.lua; do
+            lua5.4 "$file"
+          done
+
+      - name: Create release archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="sky_phone-${GITHUB_REF_NAME}.zip"
+          source_commit=$(git rev-parse HEAD)
+          printf 'Source commit: %s\nSource: https://github.com/%s/tree/%s\nSource archive: https://github.com/%s/archive/%s.zip\n' \
+            "$source_commit" "$GITHUB_REPOSITORY" "$source_commit" "$GITHUB_REPOSITORY" "$source_commit" > sky_phone/SOURCE.txt
+          zip -r "$archive" sky_phone
+          unzip -t "$archive"
+          unzip -Z1 "$archive" | grep -Fx "sky_phone/fxmanifest.lua"
+          unzip -Z1 "$archive" | grep -Fx "sky_phone/source/html/index.html"
+          unzip -Z1 "$archive" | grep -Fx "sky_phone/LICENSE"
+          unzip -Z1 "$archive" | grep -Fx "sky_phone/THIRD_PARTY_NOTICES.md"
+          unzip -Z1 "$archive" | grep -Fx "sky_phone/SOURCE.txt"
+          sha256sum "$archive" > "${archive}.sha256"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sky_phone-${{ github.ref_name }}
+          path: |
+            sky_phone-${{ github.ref_name }}.zip
+            sky_phone-${{ github.ref_name }}.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="sky_phone-${GITHUB_REF_NAME}.zip"
+
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$archive" "${archive}.sha256" --clobber
+            gh release edit "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --prerelease=false --latest
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              "$archive" \
+              "${archive}.sha256" \
+              --verify-tag \
+              --generate-notes \
+              --latest \
+              --title "$GITHUB_REF_NAME"
+          fi

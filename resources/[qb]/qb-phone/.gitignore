@@ -1,0 +1,19 @@
+/sky_phone/source/html
+.pnpm-store/
+
+# Local development and release tooling
+/build_*
+
+# Private project notes and agent context
+/CLAUDE.md
+/CONTEXT.md
+/design-qa.md
+/docs/*
+!/docs/custom-app-registration-audit.md
+!/docs/phone-configurator.md
+!/docs/inventory-setup.md
+!/docs/custom-app-input.md
+
+# Local history-rewrite and backup artifacts
+/.git-rewrite/
+/*.bundle
