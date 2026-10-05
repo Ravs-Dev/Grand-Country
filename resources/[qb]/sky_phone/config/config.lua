@@ -90,7 +90,7 @@ Config.Bridge = {
     Debug = false, -- true: show debug/info output; warnings and errors are always shown
 }
 
-Config.Command = "iphone"
+Config.Command = "phone"
 
 Config.Phone = {
     -- Applies to phone use, ringing/active calls (including video), streams and radio.
