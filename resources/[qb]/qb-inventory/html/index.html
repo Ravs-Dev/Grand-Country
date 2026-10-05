@@ -4,36 +4,48 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>QB Inventory</title>
-        <link rel="stylesheet" href="main.css" />
+        <!-- Google Fonts: Outfit -->
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+        <!-- Floating Vue & Font Awesome -->
         <link rel="stylesheet" href="https://unpkg.com/floating-vue@5.2.2/dist/style.css" />
-        <script src="https://kit.fontawesome.com/d37231be1f.js" crossorigin="anonymous"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+        <!-- Scripts -->
         <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/@floating-ui/core@1.6.0"></script>
         <script src="https://cdn.jsdelivr.net/npm/@floating-ui/dom@1.6.1"></script>
         <script src="https://unpkg.com/floating-vue@5.2.2/dist/floating-vue.umd.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+        <link rel="stylesheet" href="main.css" />
         <script src="app.js" defer></script>
     </head>
     <body>
         <div id="app">
             <div class="inventory-container" v-if="isInventoryOpen" @mousemove="drag" @mouseup="endDrag" @mousedown="containerMouseDownAction">
+
+                <!-- Player Inventory Section -->
                 <div class="inventory-section player-inventory-section" :class="{ 'centered-inventory-section': shouldCenterInventory }">
                     <div class="inventory-header">
-                        <div class="labels-container">
-                            <div class="inventory-label">
-                                <p>{{ inventoryLabel }}</p>
+                        <div class="header-main-info">
+                            <div class="brand-title">
+                                <span class="accent-dot"></span>
+                                <span class="title-text">MAIN STORAGE</span>
+                                <span class="subtitle-text">PERSONAL LOADOUT</span>
                             </div>
-                            <div class="current-weight">
-                                <p>{{ (playerWeight / 1000).toFixed(1) }} / {{ (maxWeight / 1000).toFixed(1) }}</p>
+                            <div class="weight-section">
+                                <div class="weight-numbers">
+                                    <span class="weight-curr">{{ (playerWeight / 1000).toFixed(1) }}</span>
+                                    <span class="weight-sep">/</span>
+                                    <span class="weight-max">{{ (maxWeight / 1000).toFixed(1) }} KG</span>
+                                </div>
+                                <div class="weight-progress-container">
+                                    <div class="weight-progress-fill" :style="{ width: Math.min((playerWeight / maxWeight) * 100, 100) + '%' }"></div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="weight-bar">
-                            <div class="weight-bar-fill" :style="{ width: Math.min((playerWeight / maxWeight) * 100, 100) + '%' }" :class="weightBarClass"></div>
                         </div>
                     </div>
                     <div class="inventory-grid">
                         <div class="item-grid">
-                            <div v-for="slot in totalSlots" :key="slot" class="item-slot" :data-slot="slot" :class="{ 'invalid-slot-highlight': errorSlot === slot }" @dblclick="getItemInSlot(slot, 'player') && useItem(getItemInSlot(slot, 'player'))" @mousedown="event => handleMouseDown(event, slot, 'player')">
+                            <div v-for="slot in totalSlots" :key="slot" class="item-slot" :data-slot="slot" :class="{ 'invalid-slot-highlight': errorSlot === slot, 'selected-item-slot': selectedItem && selectedItem.slot === slot && selectedItem.inventory === 'player' }" @dblclick="getItemInSlot(slot, 'player') && useItem(getItemInSlot(slot, 'player'))" @mousedown="event => handleMouseDown(event, slot, 'player')">
                                 <div class="item-slot-key" v-if="slot <= 5">
                                     <p>{{ slot }}</p>
                                 </div>
@@ -41,7 +53,7 @@
                                     <img :src="'images/' + getItemInSlot(slot, 'player').image" alt="" />
                                 </div>
                                 <div class="item-slot-amount" v-if="getItemInSlot(slot, 'player')">
-                                    <p>x{{ getItemInSlot(slot, 'player').amount }}</p>
+                                    <p>{{ getItemInSlot(slot, 'player').amount }}</p>
                                 </div>
                                 <div class="item-slot-durability" v-if="getItemInSlot(slot, 'player')">
                                     <div
@@ -56,46 +68,74 @@
                                     ></div>
                                     <div class="item-slot-durability-fill" v-else style="width: 0%"></div>
                                 </div>
-                                <!-- <div class="item-slot-label" v-if="getItemInSlot(slot, 'player')">
-                                    <p>{{ getItemInSlot(slot, 'player').label }}</p>
-                                </div> -->
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="input-container" v-if="!isOtherInventoryEmpty">
-                    <div class="input-wrapper">
-                        <input type="number" v-model="transferAmount" min="1" :placeholder="transferAmount === null ? 'amount' : ''" />
-                        <button @click="clearTransferAmount" class="clear-button">
-                            <i class="fas fa-times"></i>
-                        </button>
+                <!-- Middle Controls Section -->
+                <div class="middle-controls-section">
+                    <div class="middle-input-container">
+                        <div class="middle-input-title">AMOUNT</div>
+                        <div class="middle-input-wrapper">
+                            <input type="number" v-model.number="transferAmount" min="1" placeholder="0" />
+                            <button @click="clearTransferAmount" class="middle-clear-btn">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div 
+                        class="middle-btn middle-use-btn" 
+                        :class="{ 'btn-disabled': !selectedItem || (!selectedItem.useable && selectedItem.type !== 'weapon') }"
+                        @click="selectedItem && (selectedItem.useable || selectedItem.type === 'weapon') && useItem(selectedItem)"
+                    >
+                        <i class="fas fa-play"></i> USE
+                    </div>
+
+                    <div 
+                        class="middle-btn middle-give-btn" 
+                        :class="{ 'btn-disabled': !selectedItem }"
+                        @click="selectedItem && giveItem(selectedItem, transferAmount || 1)"
+                    >
+                        <i class="fas fa-share-nodes"></i> GIVE
+                    </div>
+
+                    <div class="middle-btn middle-close-btn" @click="closeInventory">
+                        <i class="fas fa-xmark"></i> CLOSE
                     </div>
                 </div>
 
                 <!-- Other Inventory Section -->
-                <div class="inventory-section other-inventory-section" v-if="!isOtherInventoryEmpty">
+                <div class="inventory-section other-inventory-section">
+
                     <div class="inventory-header">
-                        <div class="labels-container">
-                            <div class="inventory-label">
-                                <p>{{ otherInventoryLabel }}</p>
+                        <div class="header-main-info">
+                            <div class="brand-title">
+                                <span class="accent-dot cyan-dot"></span>
+                                <span class="title-text">{{ otherInventoryLabel }}</span>
+                                <span class="subtitle-text">EXTERNAL STORAGE</span>
                             </div>
-                            <div class="current-weight">
-                                <p>{{ (otherInventoryWeight / 1000).toFixed(1) }} / {{(otherInventoryMaxWeight / 1000).toFixed(1) }}</p>
+                            <div class="weight-section">
+                                <div class="weight-numbers">
+                                    <span class="weight-curr">{{ (otherInventoryWeight / 1000).toFixed(1) }}</span>
+                                    <span class="weight-sep">/</span>
+                                    <span class="weight-max">{{ (otherInventoryMaxWeight / 1000).toFixed(1) }} KG</span>
+                                </div>
+                                <div class="weight-progress-container">
+                                    <div class="weight-progress-fill cyan-fill" :style="{ width: Math.min((otherInventoryWeight / otherInventoryMaxWeight) * 100, 100) + '%' }"></div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="weight-bar">
-                            <div class="weight-bar-fill" :style="{ width: Math.min((otherInventoryWeight / otherInventoryMaxWeight) * 100, 100) + '%' }" :class="otherWeightBarClass"></div>
                         </div>
                     </div>
                     <div class="inventory-grid">
                         <div class="item-grid">
-                            <div v-for="slot in otherInventorySlots" :key="slot" class="item-slot" :data-slot="slot" @mousedown="event => handleMouseDown(event, slot, 'other')" @dragover.prevent>
+                            <div v-for="slot in otherInventorySlots" :key="slot" class="item-slot" :data-slot="slot" :class="{ 'selected-item-slot': selectedItem && selectedItem.slot === slot && selectedItem.inventory === 'other' }" @mousedown="event => handleMouseDown(event, slot, 'other')" @dragover.prevent>
                                 <div class="item-slot-img" v-if="getItemInSlot(slot, 'other')" v-tooltip.right-end="{content: generateTooltipContent(getItemInSlot(slot, 'other')), html: true}">
                                     <img :src="'images/' + getItemInSlot(slot, 'other').image" alt="" />
                                 </div>
                                 <div class="item-slot-amount" v-if="getItemInSlot(slot, 'other')">
-                                    <p>x{{ getItemInSlot(slot, 'other').amount }}</p>
+                                    <p>{{ getItemInSlot(slot, 'other').amount }}</p>
                                 </div>
                                 <div v-if="isShopInventory && getItemInSlot(slot, 'other')" class="item-price">
                                     <p>${{ getItemInSlot(slot, 'other').price }}</p>
@@ -113,14 +153,13 @@
                                     ></div>
                                     <div class="item-slot-durability-fill" v-else style="width: 0%"></div>
                                 </div>
-                                <!-- <div class="item-slot-label" v-if="getItemInSlot(slot, 'other')">
-                                    <p>{{ getItemInSlot(slot, 'other').label }}</p>
-                                </div> -->
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+            
+            <!-- Hotbar -->
             <div class="hotbar-container" v-if="showHotbar">
                 <div class="hotbar">
                     <div v-for="slot in 5" :key="slot" class="item-slot">
@@ -131,7 +170,7 @@
                             <img :src="'images/' + getHotbarItemInSlot(slot).image" alt="" />
                         </div>
                         <div class="item-slot-amount" v-if="getHotbarItemInSlot(slot)">
-                            <p>x{{ getHotbarItemInSlot(slot).amount }}</p>
+                            <p>{{ getHotbarItemInSlot(slot).amount }}</p>
                         </div>
                         <div class="item-slot-durability" v-if="getHotbarItemInSlot(slot)">
                             <div
@@ -152,6 +191,8 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Notification -->
             <div class="notification-container" v-if="showNotification">
                 <div class="notification-slot">
                     <div class="notification-title">
@@ -161,13 +202,15 @@
                         <img :src="notificationImage" alt="" />
                     </div>
                     <div class="item-slot-amount">
-                        <p>x{{ notificationAmount }}</p>
+                        <p>{{ notificationAmount }}</p>
                     </div>
                     <div class="item-slot-label">
                         <p>{{ notificationText }}</p>
                     </div>
                 </div>
             </div>
+
+            <!-- Required Items -->
             <div class="required-item-container" v-if="showRequiredItems">
                 <div class="required-item">
                     <div v-for="(item, index) in requiredItems" :key="index" class="item-slot">
@@ -180,45 +223,67 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Weapon Attachments -->
             <div class="weapon-attachments" v-if="showWeaponAttachments">
                 <img class="weapon" :src="'images/' + selectedWeapon.image" alt="" />
                 <div class="attachment-slot" v-for="(attachment, i) in selectedWeaponAttachments" :key="i" @click="removeAttachment(attachment)">
                     <img :src="'images/' + attachment.attachment + '.png'" alt="" />
                 </div>
             </div>
+
+            <!-- Dragged Item -->
             <div v-if="draggedItem" class="item-slot" :class="{ 'dragged-item': draggedItem }" :style="{ top: dragY + 'px', left: dragX + 'px' }">
                 <div class="item-slot-img">
                     <img :src="'images/' + draggedItem.image" alt="" />
                 </div>
                 <div class="item-slot-amount">
-                    <p>x{{ draggedItem.amount }}</p>
+                    <p>{{ draggedItem.amount }}</p>
                 </div>
                 <div class="item-slot-label">
                     <p>{{ draggedItem.label }}</p>
                 </div>
             </div>
+
+            <!-- Context Menu -->
             <ul v-if="showContextMenu" class="context-menu" :style="{ top: contextMenuPosition.top, left: contextMenuPosition.left }">
-                <li v-if="contextMenuItem.useable" @click="useItem(contextMenuItem)">Use</li>
-                <li @mouseover="showSubmenu = true" @mouseleave="showSubmenu = false">
-                    Give
+                <li v-if="!isOtherInventoryEmpty" @click="moveItemBetweenInventories(contextMenuItem, contextMenuItem.inventory); showContextMenu = false;"><i class="fas fa-exchange-alt"></i> Transfer</li>
+                <li v-if="contextMenuItem.inventory === 'player' && (contextMenuItem.useable || contextMenuItem.type === 'weapon')" @click="useItem(contextMenuItem)"><i class="fas fa-play"></i> Use</li>
+                <li v-if="contextMenuItem.inventory === 'player'" @mouseover="showSubmenu = true" @mouseleave="showSubmenu = false">
+                    <i class="fas fa-share"></i> Give
                     <ul v-if="showSubmenu" class="submenu">
                         <li @click="giveItem(contextMenuItem, 1)">Single</li>
                         <li @click="giveItem(contextMenuItem, 'half')">Half</li>
                         <li @click="giveItem(contextMenuItem, 'all')">All</li>
                     </ul>
                 </li>
-                <li @mouseover="showSubmenu = true" @mouseleave="showSubmenu = false">
-                    Drop
+                <li v-if="contextMenuItem.inventory === 'player'" @mouseover="showSubmenu = true" @mouseleave="showSubmenu = false">
+                    <i class="fas fa-trash"></i> Drop
                     <ul v-if="showSubmenu" class="submenu">
                         <li @click="dropItem(contextMenuItem, 1)">Single</li>
                         <li @click="dropItem(contextMenuItem, 'half')">Half</li>
                         <li @click="dropItem(contextMenuItem, 'all')">All</li>
                     </ul>
                 </li>
-                <li @click="splitAndPlaceItem(contextMenuItem, 'player')">Split</li>
-                <li v-if="contextMenuItem.name.includes('weapon_')" @click="copySerial(contextMenuItem)">Copy Serial</li>
-                <li v-if="contextMenuItem.name.includes('weapon_')" @click="openWeaponAttachments(contextMenuItem)">Attachments</li>
+                <li v-if="contextMenuItem.inventory === 'player'" @click="splitAndPlaceItem(contextMenuItem, 'player')"><i class="fas fa-cut"></i> Split</li>
+                <li v-if="contextMenuItem.inventory === 'player' && contextMenuItem.name.includes('weapon_')" @click="copySerial(contextMenuItem)"><i class="fas fa-copy"></i> Copy Serial</li>
+                <li v-if="contextMenuItem.inventory === 'player' && contextMenuItem.name.includes('weapon_')" @click="openWeaponAttachments(contextMenuItem)"><i class="fas fa-puzzle-piece"></i> Attachments</li>
             </ul>
+
+            <!-- Split Modal -->
+            <div class="split-modal-overlay" v-if="showSplitModal" @click.self="closeSplitModal">
+                <div class="split-modal">
+                    <div class="split-modal-title">Split Stack</div>
+                    <div class="split-modal-body">
+                        <input id="split-input-field" type="number" v-model.number="splitAmount" :max="splitModalItem.amount - 1" min="1" @keydown.enter="confirmSplit" @keydown.esc="closeSplitModal" />
+                        <span class="split-modal-max">/ {{ splitModalItem.amount }}</span>
+                    </div>
+                    <div class="split-modal-buttons">
+                        <button @click="confirmSplit" class="btn-confirm">Split</button>
+                        <button @click="closeSplitModal" class="btn-cancel">Cancel</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </body>
 </html>

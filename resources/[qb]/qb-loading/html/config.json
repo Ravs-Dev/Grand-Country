@@ -1,0 +1,129 @@
+{
+    "serverIp": "localhost:30120",
+    "Debug" : false,
+    "Theme" : "red",
+    "ServerName" : "GRAND COUNTRY ROLEPLAY",
+    "ServerDescription" : "Best of All Server!",
+    "NoImage" : "NoImagelink",
+    "Hint" : "Hint message is this.",
+    "Music" : [
+        {
+            "label" : "Cigarettes after Sex",
+            "fileName" : "music.mp3",
+            "owner" : "Apocalypse",
+            "banner" : "https://pbs.twimg.com/media/FhnvbVOXoAAmYVu.jpg:large"
+        }
+    ],
+    "SocialMedias" : [
+        {
+            "media" : "Discord",
+            "username" : "https://discord.gg/hyVjbpFMZQ",
+            "src" : "https://cdn.discordapp.com/attachments/1552235655180976198/1555798647805837413/image.png?backend=b2&ex=6ac478e6&is=6ac32766&hm=c422db4b89da04a8e16ffdcbecb4b2f32f1b5eb9dfe6a87a9261937fee0d78e7&"
+        }
+    ],
+
+    "PatchNotes" : [
+        {
+            "header" : "GRAND COUNTRY header value",
+            "Text" : "Patch note 1.",
+            "date" : "25/08/2023"
+        },
+        {
+            "header" : "GRAND COUNTRY header value",
+            "Text" : "Patch note 2.",
+            "date" : "25/08/2023"
+        },
+        {
+            "header" : "GRAND COUNTRY header value",
+            "Text" : "Patch note 3.",
+            "date" : "25/08/2023"
+        },
+        {
+            "header" : "GRAND COUNTRY header value",
+            "Text" : "Patch note 3.",
+            "date" : "25/08/2023"
+        }
+    ],
+    "Keys" : [
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        },
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        },
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        },
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        },
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        },
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        },
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        },
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        },
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        },
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        },
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        },
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        },
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        },
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        },
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        },
+        {
+            "key" : "F2",
+            "keyHeader" : "Open Inventory",
+            "keyDescription" : "You can open inventory by clicking this key."
+        }
+    ]
+}

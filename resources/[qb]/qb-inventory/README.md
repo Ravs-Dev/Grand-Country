@@ -1,55 +1,61 @@
-# qb-inventory
+# Custom Inventory Redesign
 
-## Dependencies
-- [qb-core](https://github.com/qbcore-framework/qb-core)
-- [qb-smallresources](https://github.com/qbcore-framework/qb-smallresources) - For logging transfer and other history
+A premium, custom-styled Cyberpunk-themed player inventory system for QBCore. Featuring sharp angular designs, solid color slate palettes (optimized for performance), custom headers with character names, and Outfit typography.
+
+## Preview
+
+![Inventory UI](preview.png)
 
 ## Features
-- Stashes (Personal and/or Shared)
-- Vehicle Trunk & Glovebox
-- Weapon Attachments
-- Shops
-- Item Drops
+- **Modern Minimal Cyberpunk Theme**: Solid dark panels, sleek purple accents, custom-angled borders, and clear Outfit typography.
+- **Dynamic Character Headers**: Displays the actual player character's first and last name directly inside the UI.
+- **Stashes**: Supports personal and shared storage stashes.
+- **Vehicles**: Full support for vehicle glovebox and trunk storage.
+- **Weapon Attachments**: Attach custom components to weapons in-inventory.
+- **Shops & Drops**: Custom shop inventory pane and item drops.
+- **Performance Optimized**: Built using solid, premium color styles—completely free of expensive backdrop filters and blurs.
 
-## Documentation
-https://docs.qbcore.org/qbcore-documentation/qbcore-resources/qb-inventory
+## Configuration
+All primary settings are configured inside the `config/` directory:
+- **`config/main.lua`**: Set max slots, carry weight, shop items, drops, and default settings.
+- **`html/main.css`**: Modify root variables (colors, borders, fonts) to quickly adjust the visual style of the inventory:
+  ```css
+  --accent-purple: #d680ff; /* Main theme accent color */
+  --accent-cyan: #00e5ff;   /* Secondary highlight accent */
+  --panel-bg: #0f0e15;      /* Main container background */
+  ```
 
 ## Installation
-### Manual
-- Download the script and put it in the `[qb]` directory.
-- Import `qb-inventory.sql` in your database
-- Add the following code to your server.cfg/resouces.cfg
 
-# Migrating from old qb-inventory
-
-## Database
-### Upload the new `inventory.sql` file to create the new `inventories` table
-### Use the provided `migrate.sql` file to migrate all of your saved inventory data from stashes, trunks, etc
-### Once complete, you can delete `gloveboxitems` `stashitems` and `trunkitems` tables from your database
+### 1. Database Setup
+Execute the following SQL command to create the standard `inventories` storage table (or run the included `qb-inventory.sql` file):
 ```sql
 CREATE TABLE IF NOT EXISTS `inventories` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
-  `identifier` VARCHAR(50) NOT NULL,
+  `identifier` VARCHAR(255) NOT NULL,
   `items` LONGTEXT DEFAULT ('[]'),
   PRIMARY KEY (`identifier`),
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4;
 ```
 
-# License
+### 2. Migrating From Old qb-inventory (Optional)
+If you are upgrading from an older version of `qb-inventory` that used separate database tables for stashes, gloveboxes, and trunks:
+1. Make sure you have imported the standard `inventories` table structure (Step 1 above).
+2. Execute the provided `migrate.sql` query in your database:
+   * This will merge the existing items from `gloveboxitems`, `stashitems`, and `trunkitems` tables directly into the new unified `inventories` table.
+   * The query handles duplicate keys safely.
+3. Once the migration query executes successfully, you can safely delete (drop) the old `gloveboxitems`, `stashitems`, and `trunkitems` tables from your database.
 
-    QBCore Framework
-    Copyright (C) 2021 Joshua Eger
+### 3. Loading Order
+Since QBCore resources are typically loaded together via the `[qb]` folder category, ensure that:
+- This resource is inside the `[qb]` directory.
+- `qb-core` and `qb-weapons` are loaded beforehand (either by category ordering or alphabetical loading order).
+```cfg
+ensure [qb]
+```
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>
+## Admin Commands
+- `/giveitem [player_id] [item_name] [amount]` (Admin Only) — Spawns an item directly to the player.
+- `/clearinv [player_id]` (Admin Only) — Clears all items in the player's inventory.
+- `/randomitems` (God Only) — Spawns random starter items to test slot distribution.

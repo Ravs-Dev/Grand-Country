@@ -15,8 +15,8 @@ Config = {
     },
 
     Keybinds = {
-        Open = 'TAB',
-        Hotbar = 'Z',
+        Open = 'F2',
+        Hotbar = 'TAB',
     },
 
     CleanupDropTime = 15,    -- in minutes

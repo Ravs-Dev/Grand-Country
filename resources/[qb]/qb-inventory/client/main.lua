@@ -132,23 +132,15 @@ RegisterNetEvent('qb-inventory:client:closeInv', function()
     })
 end)
 
-RegisterNetEvent('qb-inventory:client:updateInventory', function(fromInventory, toInventory, fromItems, toItems, errorSlot)
-    fromInventory = fromInventory or 'player'
-    toInventory = toInventory or 'player'
-
+RegisterNetEvent('qb-inventory:client:updateInventory', function()
     local items = {}
     if PlayerData and type(PlayerData.items) == "table" then
         items = PlayerData.items
     end
 
-    local otherItems = (toInventory ~= 'player' and toItems or fromInventory ~= 'player' and fromItems) or nil
-
     SendNUIMessage({
         action = 'update',
-        inventory = items,
-        otherItems = otherItems,
-        errorInventory = errorSlot and fromInventory or nil, -- assumes error origin, only meaningful alongside errorSlot
-        errorSlot = errorSlot,
+        inventory = items
     })
 end)
 
@@ -170,12 +162,19 @@ end)
 
 RegisterNetEvent('qb-inventory:client:openInventory', function(items, other)
     SetNuiFocus(true, true)
+    
+    local playerName = "Player"
+    if PlayerData and PlayerData.charinfo then
+        playerName = PlayerData.charinfo.firstname .. " " .. PlayerData.charinfo.lastname
+    end
+
     SendNUIMessage({
         action = 'open',
         inventory = items,
         slots = Config.MaxSlots,
         maxweight = Config.MaxWeight,
-        other = other
+        other = other,
+        playerName = playerName
     })
 end)
 

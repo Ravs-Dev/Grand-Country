@@ -11,10 +11,10 @@ shared_script 'config.lua'
 client_script 'client.lua'
 server_script 'server.lua'
 
-ui_page 'html/index.html'
+ui_page 'html/hud.html'
 
 files {
-    'html/index.html',
+    'html/hud.html',
     'html/style.css',
     'html/app.js',
     'images/logo.png',

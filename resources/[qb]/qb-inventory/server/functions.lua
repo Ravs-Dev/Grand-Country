@@ -1,21 +1,14 @@
 -- Local Functions
 
---- Creates an inventory if missing, then fills in any metadata the caller did not supply.
---- @param identifier string
---- @param data table|nil Optional metadata: label, maxweight, slots.
---- @return table - The inventory.
-local function ResolveInventory(identifier, data)
-    local inventory = Inventories[identifier]
-    if not inventory then
-        inventory = { items = {}, isOpen = false }
-        Inventories[identifier] = inventory
-    end
-
-    inventory.label = (data and data.label) or inventory.label or identifier
-    inventory.maxweight = (data and data.maxweight) or inventory.maxweight or Config.StashSize.maxweight
-    inventory.slots = (data and data.slots) or inventory.slots or Config.StashSize.slots
-
-    return inventory
+local function InitializeInventory(inventoryId, data)
+    Inventories[inventoryId] = {
+        items = {},
+        isOpen = false,
+        label = data and data.label or inventoryId,
+        maxweight = data and data.maxweight or Config.StashSize.maxweight,
+        slots = data and data.slots or Config.StashSize.slots
+    }
+    return Inventories[inventoryId]
 end
 
 local function GetFirstFreeSlot(items, maxSlots)
@@ -53,27 +46,6 @@ local function SetupShopItems(shopItems)
         end
     end
     return items
-end
-
---- Resolves an identifier to its items and capacity.
---- @param identifier string|number The identifier of a player, inventory or drop.
---- @param requireCapacity boolean|nil Refuse inventories whose capacity is not set yet.
---- @return table|nil items, number|nil maxweight, number|nil slots, table|nil player
-local function ResolveTarget(identifier, requireCapacity)
-    local player = exports['qb-core']:GetPlayer(identifier)
-    if player then
-        return player.PlayerData.items, Config.MaxWeight, Config.MaxSlots, player
-    end
-
-    local inventory = Inventories[identifier] or Drops[identifier]
-    if not inventory then return nil end
-
-    if requireCapacity and (not inventory.maxweight or not inventory.slots) then
-        print(('Inventory %s has no capacity set, create or open it first'):format(identifier))
-        return nil
-    end
-
-    return inventory.items, inventory.maxweight, inventory.slots
 end
 
 -- Exported Functions
@@ -223,15 +195,11 @@ end
 
 exports('SetItemData', SetItemData)
 
-function UseItem(itemName, source, item, ...)
+function UseItem(itemName, ...)
     local itemData = QBCore.Functions.CanUseItem(itemName)
-    local hookData = buildHookData('ItemUsed', source, exports['qb-core']:GetPlayer(source), item)
-    if TriggerHook('ItemUsed', item.type, hookData) == false then return false end
     if type(itemData) == 'table' and itemData.func then
-        itemData.func(source, item, ...)
+        itemData.func(...)
     end
-    RefreshInventorySnapshot(hookData, 'sourceInventory', source)
-    TriggerListener('ItemUsed', item.type, hookData)
 end
 
 exports('UseItem', UseItem)
@@ -334,9 +302,20 @@ exports('GetItemsByName', GetItemsByName)
 
 --- Retrieves the total count of used and free slots for a player or an inventory.
 --- @param identifier number|string The player's identifier or the identifier of an inventory or drop.
---- @return number, number|nil - The total count of used slots and the total count of free slots. If no usable inventory is found, returns 0 and nil.
+--- @return number, number - The total count of used slots and the total count of free slots. If no inventory is found, returns 0 and the maximum slots.
 function GetSlots(identifier)
-    local inventory, _, maxSlots = ResolveTarget(identifier, true)
+    local inventory, maxSlots
+    local player = exports['qb-core']:GetPlayer(identifier)
+    if player then
+        inventory = player.PlayerData.items
+        maxSlots = Config.MaxSlots
+    elseif Inventories[identifier] then
+        inventory = Inventories[identifier].items
+        maxSlots = Inventories[identifier].slots
+    elseif Drops[identifier] then
+        inventory = Drops[identifier].items
+        maxSlots = Drops[identifier].slots
+    end
     if not inventory then return 0, maxSlots end
     local slotsUsed = 0
     for _, v in pairs(inventory) do
@@ -382,29 +361,41 @@ exports('GetItemCount', GetItemCount)
 --- @return boolean - Returns true if the item can be added, false otherwise.
 --- @return string|nil - Returns a string indicating the reason why the item cannot be added (e.g., 'weight' or 'slots'), or nil if it can be added.
 function CanAddItem(identifier, item, amount)
+    local Player = exports['qb-core']:GetPlayer(identifier)
+
     local itemData = QBCore.Shared.Items[item:lower()]
     if not itemData then return false end
 
-    local items, maxweight, slots = ResolveTarget(identifier, true)
+    local inventory, items
+    if Player then
+        inventory = {
+            maxweight = Config.MaxWeight,
+            slots = Config.MaxSlots
+        }
+        items = Player.PlayerData.items
+    elseif Inventories[identifier] then
+        inventory = Inventories[identifier]
+        items = Inventories[identifier].items
+    end
 
-    if not items then
-        print(('CanAddItem: Inventory not found: %s'):format(identifier))
+    if not inventory then
+        print('CanAddItem: Inventory not found')
         return false
     end
 
     local weight = itemData.weight * amount
     local totalWeight = GetTotalWeight(items) + weight
-    if totalWeight > maxweight then
+    if totalWeight > inventory.maxweight then
         return false, 'weight'
     end
 
     local slotsUsed, _ = GetSlots(identifier)
 
-    if slotsUsed >= slots then
+    if slotsUsed >= inventory.slots then
         for _, v in pairs(items) do
             if v.name == itemData.name then
                 if itemData.unique then break end
-                print(('CanAddItem: Inventory %s has no free slots for item %s, but has %d of it already'):format(identifier, itemData.name, v.amount))
+                print(('CanAddItem: Player %s has no free slots for item %s, but has %d of it already'):format(identifier, itemData.name, v.amount))
                 goto continue
             end
         end
@@ -535,13 +526,9 @@ function OpenInventoryById(source, targetId)
         slots = Config.MaxSlots,
         inventory = targetItems
     }
-    local hookData = buildHookData('InventoryOpened', source, QBPlayer, targetId, TargetPlayer)
-    if TriggerHook('InventoryOpened', 'player', hookData) == false then return end
     Wait(1500)
-    InventoryViewers[tonumber(targetId)] = source
     Player(targetId).state.inv_busy = true
     TriggerClientEvent('qb-inventory:client:openInventory', source, playerItems, formattedInventory)
-    TriggerListener('InventoryOpened', 'player', hookData)
 end
 
 exports('OpenInventoryById', OpenInventoryById)
@@ -566,8 +553,7 @@ function CreateShop(shopData)
             label = shopData.label,
             coords = shopData.coords,
             slots = #shopData.items,
-            items = SetupShopItems(shopData.items),
-            type = shopData.type,
+            items = SetupShopItems(shopData.items)
         }
     else
         for key, data in pairs(shopData) do
@@ -579,8 +565,7 @@ function CreateShop(shopData)
                         label = data.label,
                         coords = data.coords,
                         slots = #data.items,
-                        items = SetupShopItems(data.items),
-                        type = data.type,
+                        items = SetupShopItems(data.items)
                     }
                 else
                     CreateShop(data)
@@ -608,8 +593,6 @@ function OpenShop(source, name)
             if distance > 5.0 then return end
         end
     end
-    local hookData = buildHookData('ShopOpened', source, Player, name)
-    if TriggerHook('ShopOpened', GetInventoryType(name), hookData) == false then return end
     local formattedInventory = {
         name = 'shop-' .. RegisteredShops[name].name,
         label = RegisteredShops[name].label,
@@ -618,7 +601,6 @@ function OpenShop(source, name)
         inventory = RegisteredShops[name].items
     }
     TriggerClientEvent('qb-inventory:client:openInventory', source, Player.PlayerData.items, formattedInventory)
-    TriggerListener('ShopOpened', GetInventoryType(name), hookData)
 end
 
 exports('OpenShop', OpenShop)
@@ -632,11 +614,8 @@ function OpenInventory(source, identifier, data)
     if not QBPlayer then return end
 
     if not identifier then
-        local hookData = buildHookData('InventoryOpened', source, QBPlayer)
-        if TriggerHook('InventoryOpened', nil, hookData) == false then return end
         Player(source).state.inv_busy = true
         TriggerClientEvent('qb-inventory:client:openInventory', source, QBPlayer.PlayerData.items)
-        TriggerListener('InventoryOpened', nil, hookData)
         return
     end
 
@@ -652,9 +631,10 @@ function OpenInventory(source, identifier, data)
         return
     end
 
-    inventory = ResolveInventory(identifier, data)
-    local hookData = buildHookData('InventoryOpened', source, QBPlayer, identifier, identifier, inventory)
-    if TriggerHook('InventoryOpened', GetInventoryType(identifier), hookData) == false then return end
+    if not inventory then inventory = InitializeInventory(identifier, data) end
+    inventory.maxweight = (data and data.maxweight) or (inventory and inventory.maxweight) or Config.StashSize.maxweight
+    inventory.slots = (data and data.slots) or (inventory and inventory.slots) or Config.StashSize.slots
+    inventory.label = (data and data.label) or (inventory and inventory.label) or identifier
     inventory.isOpen = source
 
     local formattedInventory = {
@@ -665,17 +645,17 @@ function OpenInventory(source, identifier, data)
         inventory = inventory.items
     }
     TriggerClientEvent('qb-inventory:client:openInventory', source, QBPlayer.PlayerData.items, formattedInventory)
-    TriggerListener('InventoryOpened', GetInventoryType(identifier), hookData)
 end
 
 exports('OpenInventory', OpenInventory)
 
---- Creates an inventory, or fills in the metadata of one that already exists.
+--- Creates a new inventory and returns the inventory object.
 --- @param identifier string The identifier of the inventory to create.
---- @param data table|nil Optional metadata: label, maxweight, slots.
+--- @param data table Additional data for initializing the inventory.
 function CreateInventory(identifier, data)
-    if type(identifier) ~= 'string' then return end
-    ResolveInventory(identifier, data)
+    if Inventories[identifier] then return end
+    if not identifier then return end
+    Inventories[identifier] = InitializeInventory(identifier, data)
 end
 
 exports('CreateInventory', CreateInventory)
@@ -706,85 +686,94 @@ exports('RemoveInventory', RemoveInventory)
 --- @param slot number (optional) The slot to add the item to. If not provided, it will find the first available slot.
 --- @param info table (optional) Additional information about the item.
 --- @param reason string (optional) The reason for adding the item.
---- @param isInternalMove boolean (optional) Internal parameter suppresses the ItemAdded hook.
 --- @return boolean Returns true if the item was successfully added, false otherwise.
-function AddItem(identifier, item, amount, slot, info, reason, isInternalMove)
+function AddItem(identifier, item, amount, slot, info, reason)
     local itemInfo = QBCore.Shared.Items[item:lower()]
     if not itemInfo then
         print('AddItem: Invalid item')
         return false
     end
-    local inventory, inventoryWeight, inventorySlots, player = ResolveTarget(identifier, true)
+    local inventory, inventoryWeight, inventorySlots
+    local player = exports['qb-core']:GetPlayer(identifier)
+
+    if player then
+        inventory = player.PlayerData.items
+        inventoryWeight = Config.MaxWeight
+        inventorySlots = Config.MaxSlots
+    elseif Inventories[identifier] then
+        inventory = Inventories[identifier].items
+        inventoryWeight = Inventories[identifier].maxweight
+        inventorySlots = Inventories[identifier].slots
+    elseif Drops[identifier] then
+        inventory = Drops[identifier].items
+        inventoryWeight = Drops[identifier].maxweight
+        inventorySlots = Drops[identifier].slots
+    end
 
     if not inventory then
-        print(('AddItem: Inventory not found: %s'):format(identifier))
+        print('AddItem: Inventory not found')
         return false
     end
 
     local totalWeight = GetTotalWeight(inventory)
-    amount = tonumber(amount) or 1
     if totalWeight + (itemInfo.weight * amount) > inventoryWeight then
         print('AddItem: Not enough weight available')
         return false
     end
 
-    -- pre-commit hook data
-    if not itemInfo.unique then slot = slot or GetFirstSlotByItem(inventory, item) end
-    local currentItem = slot and inventory[slot]
-    local pendingItem = {
-        name = item,
-        amount = amount,
-        info = info or {},
-        label = itemInfo.label,
-        description = itemInfo.description or '',
-        weight = itemInfo.weight,
-        type = itemInfo.type,
-        unique = itemInfo.unique,
-        useable = itemInfo.useable,
-        image = itemInfo.image,
-        shouldClose = itemInfo.shouldClose,
-        slot = slot or GetFirstFreeSlot(inventory, inventorySlots),
-        combinable = itemInfo.combinable,
-    }
-    slot = pendingItem.slot
-    if not slot then
-        print('AddItem: No free slot available')
-        return false
-    end
+    amount = tonumber(amount) or 1
+    local updated = false
 
-    if itemInfo.type == 'weapon' then
-        if not pendingItem.info.serie then
-            pendingItem.info.serie = tostring(QBCore.Shared.RandomInt(2) .. QBCore.Shared.RandomStr(3) .. QBCore.Shared.RandomInt(1) .. QBCore.Shared.RandomStr(2) .. QBCore.Shared.RandomInt(3) .. QBCore.Shared.RandomStr(4))
-        end
-        if not pendingItem.info.quality then
-            pendingItem.info.quality = 100
+    if not itemInfo.unique then
+        slot = slot or GetFirstSlotByItem(inventory, item)
+        if slot then
+            for _, invItem in pairs(inventory) do
+                if invItem.slot == slot then
+                    invItem.amount = invItem.amount + amount
+                    updated = true
+                    break
+                end
+            end
         end
     end
 
-    local hookData
-    local resourceName = GetInvokingResource() or 'qb-inventory'
-    if not isInternalMove then
-        hookData = buildHookData('ItemAdded', identifier, pendingItem, slot, amount, player, reason, resourceName)
-        local mutatedInfo = TriggerHook('ItemAdded', pendingItem.type, hookData)
-        if mutatedInfo == false then return false end
-        if type(mutatedInfo) == 'table' then
-            pendingItem.info = mutatedInfo
-            if currentItem then currentItem.info = mutatedInfo end
+    if not updated then
+        slot = slot or GetFirstFreeSlot(inventory, inventorySlots)
+        if not slot then
+            print('AddItem: No free slot available')
+            return false
         end
-    end
-    if currentItem and not currentItem.unique then
-        currentItem.amount = currentItem.amount + amount
-        inventory[slot] = currentItem
-    else
-        inventory[slot] = pendingItem
+
+        inventory[slot] = {
+            name = item,
+            amount = amount,
+            info = info or {},
+            label = itemInfo.label,
+            description = itemInfo.description or '',
+            weight = itemInfo.weight,
+            type = itemInfo.type,
+            unique = itemInfo.unique,
+            useable = itemInfo.useable,
+            image = itemInfo.image,
+            shouldClose = itemInfo.shouldClose,
+            slot = slot,
+            combinable = itemInfo.combinable
+        }
+
+        if itemInfo.type == 'weapon' then
+            if not inventory[slot].info.serie then
+                inventory[slot].info.serie = tostring(QBCore.Shared.RandomInt(2) .. QBCore.Shared.RandomStr(3) .. QBCore.Shared.RandomInt(1) .. QBCore.Shared.RandomStr(2) .. QBCore.Shared.RandomInt(3) .. QBCore.Shared.RandomStr(4))
+            end
+            if not inventory[slot].info.quality then
+                inventory[slot].info.quality = 100
+            end
+        end
     end
 
     if player then player.SetPlayerData('items', inventory) end
-    local stash = Inventories[identifier]
-    if stash and not stash.isOpen then SaveInventoryItems(identifier) end
-    if hookData then TriggerListener('ItemAdded', pendingItem.type, hookData) end
     local invName = player and GetPlayerName(identifier) .. ' (' .. identifier .. ')' or identifier
     local addReason = reason or 'No reason specified'
+    local resourceName = GetInvokingResource() or 'qb-inventory'
     TriggerEvent(
         'qb-log:server:CreateLog',
         'playerinventory',
@@ -807,18 +796,26 @@ exports('AddItem', AddItem)
 --- @param amount number - The amount of the item to remove.
 --- @param slot number - The slot number of the item in the inventory. If not provided, it will find the first slot with the item.
 --- @param reason string - The reason for removing the item. Defaults to 'No reason specified' if not provided.
---- @param isInternalMove boolean (optional) Internal parameter suppresses the ItemAdded hook.
 --- @return boolean - Returns true if the item was successfully removed, false otherwise.
-function RemoveItem(identifier, item, amount, slot, reason, isInternalMove)
+function RemoveItem(identifier, item, amount, slot, reason)
     if not QBCore.Shared.Items[item:lower()] then
         print('RemoveItem: Invalid item')
         return false
     end
 
-    local inventory, _, _, player = ResolveTarget(identifier)
+    local inventory
+    local player = exports['qb-core']:GetPlayer(identifier)
+
+    if player then
+        inventory = player.PlayerData.items
+    elseif Inventories[identifier] then
+        inventory = Inventories[identifier].items
+    elseif Drops[identifier] then
+        inventory = Drops[identifier].items
+    end
 
     if not inventory then
-        print(('RemoveItem: Inventory not found: %s'):format(identifier))
+        print('RemoveItem: Inventory not found')
         return false
     end
 
@@ -851,13 +848,6 @@ function RemoveItem(identifier, item, amount, slot, reason, isInternalMove)
         return false
     end
 
-    local hookData
-    local resourceName = GetInvokingResource() or 'qb-inventory'
-    if not isInternalMove then
-        hookData = buildHookData('ItemRemoved', identifier, inventoryItem, inventoryItem.slot, amount, player, reason, resourceName)
-        if TriggerHook('ItemRemoved', inventoryItem.type, hookData) == false then return false end
-    end
-
     inventoryItem.amount = inventoryItem.amount - amount
     if inventoryItem.amount <= 0 then
         inventory[itemKey] = nil
@@ -874,13 +864,9 @@ function RemoveItem(identifier, item, amount, slot, reason, isInternalMove)
         end
     end
 
-    local stash = Inventories[identifier]
-    if stash and not stash.isOpen then SaveInventoryItems(identifier) end
-
-    if hookData then TriggerListener('ItemRemoved', inventoryItem.type, hookData) end
-
     local invName = player and GetPlayerName(identifier) .. ' (' .. identifier .. ')' or identifier
     local removeReason = reason or 'No reason specified'
+    local resourceName = GetInvokingResource() or 'qb-inventory'
 
     TriggerEvent(
         'qb-log:server:CreateLog',
@@ -897,75 +883,3 @@ function RemoveItem(identifier, item, amount, slot, reason, isInternalMove)
 end
 
 exports('RemoveItem', RemoveItem)
-
---- Registers a hook that can cancel the associated event by returning false.
---- @param hookType 'ItemMoved'|'ItemDropped'|'ItemUsed'|'ItemBought'|'ItemAdded'|'ItemRemoved'|'InventoryOpened'|'ShopOpened' - The event type to hook into.
---- @param callback fun(...): boolean|nil - Callback invoked before the event executes. Return false to cancel it.
---- @return number|nil hookIdx - Index used to remove the hook later, or nil if registration failed.
-function AddHook(hookType, callback)
-    if not hookType or not callback then return end
-    if type(callback) == 'table' and not rawget(callback, '__cfx_functionReference') then return end
-
-    local hooks = Events[hookType]?.hooks
-    if not hooks then
-        print('AddHook: Invalid hook type', hookType)
-        return
-    end
-
-    local hookIdx = #hooks + 1
-    hooks[hookIdx] = { fn = callback, resource = GetInvokingResource() }
-
-    return hookIdx
-end
-
-exports('AddHook', AddHook)
-
---- Removes a previously registered hook.
---- @param hookType 'ItemMoved'|'ItemDropped'|'ItemUsed'|'ItemBought'|'ItemAdded'|'ItemRemoved'|'InventoryOpened'|'ShopOpened' - The event type the hook was registered on.
---- @param hookIdx number - The index returned by AddHook.
-function RemoveHook(hookType, hookIdx)
-    if not hookType or not hookIdx or not Events[hookType] then return end
-
-    local hooks = Events[hookType]?.hooks
-    if not hooks then return end
-
-    hooks[hookIdx] = false
-end
-
-exports('RemoveHook', RemoveHook)
-
---- Registers a listener that is notified after an event executes (cannot cancel it).
---- @param listenerType 'ItemMoved'|'ItemDropped'|'ItemUsed'|'ItemBought'|'ItemAdded'|'ItemRemoved'|'InventoryOpened'|'ShopOpened' - The event type to listen to.
---- @param callback fun(...) - Callback invoked after the event executes. Return value is ignored.
---- @return number|nil listenerIdx - Index used to remove the listener later, or nil if registration failed.
-function AddListener(listenerType, callback)
-    if not listenerType or not callback then return end
-    if type(callback) == 'table' and not rawget(callback, '__cfx_functionReference') then return end
-
-    local listeners = Events[listenerType]?.listeners
-    if not listeners then
-        print('AddListener: Invalid listener type', listenerType)
-        return
-    end
-
-    local listenerIdx = #listeners + 1
-    listeners[listenerIdx] = { fn = callback, resource = GetInvokingResource() }
-
-    return listenerIdx
-end
-
-exports('AddListener', AddListener)
-
---- Removes a previously registered listener.
---- @param listenerType 'ItemMoved'|'ItemDropped'|'ItemUsed'|'ItemBought'|'ItemAdded'|'ItemRemoved'|'InventoryOpened'|'ShopOpened' - The event type the listener was registered on.
---- @param listenerIdx number - The index returned by AddListener.
-function RemoveListener(listenerType, listenerIdx)
-    if not listenerType or not listenerIdx or not Events[listenerType] then return end
-
-    local listeners = Events[listenerType]?.listeners
-    if not listeners then return end
-
-    listeners[listenerIdx] = false
-end
-
-exports('RemoveListener', RemoveListener)

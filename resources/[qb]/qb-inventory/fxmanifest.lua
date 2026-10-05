@@ -1,9 +1,8 @@
 fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
-author 'Kakarot'
 description 'Player inventory system providing a variety of features for storing and managing items'
-version '2.2.3'
+version '2.0.0'
 
 shared_scripts {
     '@qb-core/shared/locale.lua',
@@ -23,7 +22,6 @@ server_scripts {
     'server/main.lua',
     'server/functions.lua',
     'server/commands.lua',
-    'server/hooks.lua',
 }
 
 ui_page 'html/index.html'
@@ -33,6 +31,7 @@ files {
     'html/main.css',
     'html/app.js',
     'html/images/*.png',
+    'html/images/*.PNG',
 }
 
 dependency 'qb-weapons'
