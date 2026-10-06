@@ -1,22 +1,35 @@
-fx_version 'cerulean'
-game 'gta5'
+fx_version("cerulean")
+game("gta5")
 
-lua54 'yes'
+name("minimal-hud")
+author("MadCap <discord:https://discord.gg/dTNWpmPGyc>")
+-- author("vipex <discord:vipex.v>")
+version("3.0.0")
+description ("Minimalistic FiveM HUD")
+repository("https://github.com/ThatMadCap/minimal-hud")
 
-author 'Grand Country Roleplay'
-description 'Custom QBCore HUD - GCR Orange Circular Status HUD'
-version '6.0.0'
+shared_scripts({
+    "@ox_lib/init.lua",
+    "init.lua",
+})
 
-shared_script 'config.lua'
-client_script 'client.lua'
-server_script 'server.lua'
+ui_page("dist/index.html")
+-- ui_page("http://localhost:5173/")
 
-ui_page 'html/hud.html'
+files({
+    "dist/index.html",
+    "dist/assets/*.js",
+    "dist/assets/*.css",
+    "dist/**/*.woff2",
+    "config/*.lua",
+    "config/functions.lua",
+    "modules/interface/client.lua",
+    "modules/utility/shared/main.lua",
+    "modules/seatbelt/client.lua",
+    "modules/frameworks/**/*.lua",
+    "modules/threads/client/**/*.lua",
+})
 
-files {
-    'html/hud.html',
-    'html/style.css',
-    'html/app.js',
-    'images/logo.png',
-    'images/body.png'
-}
+lua54("yes")
+use_experimental_fxv2_oal("yes")
+nui_callback_strict_mode("true")

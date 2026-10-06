@@ -249,7 +249,7 @@ RegisterServerEvent('baseevents:leftVehicle', function(veh, seat, modelName)
     TriggerClientEvent('QBCore:Client:VehicleInfo', src, data)
 end)
 
--- Non-Chat Command Calling (ex: qb-adminmenu)
+-- Non-Chat Command Calling (ex: xeno-adminmenu)
 
 RegisterNetEvent('QBCore:CallCommand', function(command, args)
     local src = source
