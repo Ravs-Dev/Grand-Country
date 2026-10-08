@@ -453,7 +453,7 @@ Config.DarkChat = {
 }
 
 Config.Mail = {
-    Domain = "ifruit.com",
+    Domain = "grand-country.com",
     LocalPartMinLength = 3,
     LocalPartMaxLength = 32,
     PasswordMinLength = 6,

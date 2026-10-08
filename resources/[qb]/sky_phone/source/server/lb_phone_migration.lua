@@ -114,7 +114,7 @@ local function deterministic_imei(value)
 end
 
 local function synthetic_email(namespace, value)
-    local domain = tostring(Config.Mail.Domain or "ifruit.com"):lower()
+    local domain = tostring(Config.Mail.Domain or "grand-country.com"):lower()
     local suffix = "@" .. domain
     local local_maximum = math.max(3, 64 - #suffix)
     local local_part = (namespace .. "_" .. deterministic_hex(namespace, value)):sub(1, local_maximum)

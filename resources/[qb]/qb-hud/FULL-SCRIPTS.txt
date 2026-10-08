@@ -1,0 +1,1961 @@
+================ fxmanifest.lua ================
+fx_version 'cerulean'
+game 'gta5'
+
+lua54 'yes'
+
+author 'Grand Country Roleplay'
+description 'Custom QBCore HUD - GCR Orange Circular Status HUD'
+version '6.0.0'
+
+shared_script 'config.lua'
+client_script 'client.lua'
+server_script 'server.lua'
+
+ui_page 'html/hud.html'
+
+files {
+    'html/hud.html',
+    'html/style.css',
+    'html/app.js',
+    'images/logo.png',
+    'images/body.png'
+}
+
+================ config.lua ================
+Config = {}
+
+Config.ServerName = 'Grand Country Roleplay'
+
+-- HUD refresh. 150-250ms is smooth enough without wasting resources.
+Config.RefreshRate = 200
+Config.PlayerCountRefresh = 10000
+
+-- Minimap hidden during normal gameplay; it is shown while ESC/pause menu is open.
+Config.HideMinimapInGameplay = true
+
+-- Optional vehicle HUD at the bottom center.
+Config.ShowVehicleHud = false
+
+-- Injury detector.
+Config.EnableBodyInjury = true
+Config.SaveInjuriesToMetadata = true
+
+-- true  = red body parts stay red until revive/heal command clears them.
+-- false = they automatically clear after InjuryDisplayTime milliseconds.
+Config.PersistInjuries = true
+Config.InjuryDisplayTime = 120000
+Config.ClearInjuriesOnRevive = true
+
+Config.DefaultJob = 'Civilian - Freelancer'
+Config.DefaultGang = 'No Gang - Unaffiliated'
+
+================ client.lua ================
+local QBCore = exports['qb-core']:GetCoreObject()
+
+local PlayerData = {}
+local playerCount = 0
+local hudVisible = true
+local lastHealth = nil
+local lastArmor = nil
+
+local injuries = {
+    head = false,
+    torso = false,
+    leftarm = false,
+    rightarm = false,
+    leftleg = false,
+    rightleg = false
+}
+
+local injuryExpire = {}
+
+-- GTA V ped bones grouped into the 6 areas shown by the body detector.
+local injuryBones = {
+    head = {
+        31086, -- head
+        39317  -- neck
+    },
+    torso = {
+        11816, -- pelvis
+        24816, -- spine0
+        24817, -- spine1
+        24818, -- spine2
+        57597, -- spine3
+        23553  -- spine root
+    },
+    leftarm = {
+        64729, -- left clavicle
+        45509, -- left upper arm
+        61163, -- left forearm
+        18905  -- left hand
+    },
+    rightarm = {
+        10706, -- right clavicle
+        40269, -- right upper arm
+        28252, -- right forearm
+        57005  -- right hand
+    },
+    leftleg = {
+        58271, -- left thigh
+        63931, -- left calf
+        14201, -- left foot
+        2108   -- left toe
+    },
+    rightleg = {
+        51826, -- right thigh
+        36864, -- right calf
+        52301, -- right foot
+        20781  -- right toe
+    }
+}
+
+local function clamp(value, minValue, maxValue)
+    value = tonumber(value) or 0
+    if value < minValue then return minValue end
+    if value > maxValue then return maxValue end
+    return value
+end
+
+local function contains(list, value)
+    for i = 1, #list do
+        if list[i] == value then
+            return true
+        end
+    end
+    return false
+end
+
+local function getBoneZone(bone)
+    if contains(injuryBones.head, bone) then return 'head' end
+    if contains(injuryBones.leftarm, bone) then return 'leftarm' end
+    if contains(injuryBones.rightarm, bone) then return 'rightarm' end
+    if contains(injuryBones.leftleg, bone) then return 'leftleg' end
+    if contains(injuryBones.rightleg, bone) then return 'rightleg' end
+    if contains(injuryBones.torso, bone) then return 'torso' end
+    return 'torso'
+end
+
+local function cleanInjuryTable(data)
+    data = type(data) == 'table' and data or {}
+    return {
+        head = data.head == true,
+        torso = data.torso == true,
+        leftarm = data.leftarm == true,
+        rightarm = data.rightarm == true,
+        leftleg = data.leftleg == true,
+        rightleg = data.rightleg == true
+    }
+end
+
+local function saveInjuries()
+    if not Config.SaveInjuriesToMetadata then return end
+    TriggerServerEvent('gcr-hud:server:setInjuries', injuries)
+end
+
+local function markInjury(zone)
+    zone = zone or 'torso'
+
+    if injuries[zone] ~= true then
+        injuries[zone] = true
+        saveInjuries()
+    end
+
+    if not Config.PersistInjuries then
+        injuryExpire[zone] = GetGameTimer() + Config.InjuryDisplayTime
+    end
+end
+
+local function clearInjuries(save)
+    injuries = {
+        head = false,
+        torso = false,
+        leftarm = false,
+        rightarm = false,
+        leftleg = false,
+        rightleg = false
+    }
+
+    injuryExpire = {}
+
+    if save ~= false then
+        saveInjuries()
+    end
+end
+
+local function refreshPlayerData()
+    local data = QBCore.Functions.GetPlayerData()
+    if data then
+        PlayerData = data
+    end
+    return PlayerData
+end
+
+local function loadInjuriesFromMetadata()
+    local metadata = (PlayerData and PlayerData.metadata) or {}
+    injuries = cleanInjuryTable(metadata.injuries)
+end
+
+local function moneyValue(moneyType)
+    local money = (PlayerData and PlayerData.money) or {}
+    return tonumber(money[moneyType]) or 0
+end
+
+local function getJobText()
+    local job = PlayerData and PlayerData.job
+    if not job or not job.name then
+        return Config.DefaultJob
+    end
+
+    local label = job.label or job.name or 'Civilian'
+    local gradeName
+
+    if type(job.grade) == 'table' then
+        gradeName = job.grade.name or job.grade.label
+    elseif job.grade ~= nil then
+        gradeName = tostring(job.grade)
+    end
+
+    if not gradeName or gradeName == '' then
+        gradeName = 'Freelancer'
+    end
+
+    return ('%s - %s'):format(label, gradeName)
+end
+
+local function getGangText()
+    local gang = PlayerData and PlayerData.gang
+    if not gang or not gang.name or gang.name == 'none' then
+        return Config.DefaultGang
+    end
+
+    local label = gang.label or gang.name
+    local gradeName
+
+    if type(gang.grade) == 'table' then
+        gradeName = gang.grade.name or gang.grade.label
+    elseif gang.grade ~= nil then
+        gradeName = tostring(gang.grade)
+    end
+
+    if not gradeName or gradeName == '' then
+        gradeName = 'Member'
+    end
+
+    return ('%s - %s'):format(label, gradeName)
+end
+
+local function getHealthPercent(ped)
+    local current = GetEntityHealth(ped)
+    local maximum = GetEntityMaxHealth(ped)
+
+    -- Normal GTA player peds use 100..200 for 0..100 visible health.
+    local baseHealth = 100
+    local usableMax = math.max(maximum - baseHealth, 1)
+    local percent = ((current - baseHealth) / usableMax) * 100.0
+
+    if IsEntityDead(ped) then
+        percent = 0
+    end
+
+    return math.floor(clamp(percent, 0, 100) + 0.5)
+end
+
+local function getNeeds()
+    local metadata = (PlayerData and PlayerData.metadata) or {}
+    local hunger = tonumber(metadata.hunger) or 100
+    local thirst = tonumber(metadata.thirst) or 100
+    local stress = tonumber(metadata.stress) or 0
+
+    return math.floor(clamp(hunger, 0, 100)), math.floor(clamp(thirst, 0, 100)), math.floor(clamp(stress, 0, 100))
+end
+
+local function getVoiceData()
+    local talking = NetworkIsPlayerTalking(PlayerId())
+    local mode = 'OFF'
+
+    if LocalPlayer and LocalPlayer.state then
+        local proximity = LocalPlayer.state.proximity
+
+        if type(proximity) == 'table' then
+            local index = tonumber(proximity.index or proximity.mode)
+
+            if index == 1 then
+                mode = 'WHISPER'
+            elseif index == 2 then
+                mode = 'NORMAL'
+            elseif index == 3 then
+                mode = 'SHOUT'
+            elseif proximity.name then
+                mode = tostring(proximity.name)
+            elseif proximity.distance then
+                mode = tostring(math.floor((tonumber(proximity.distance) or 0) + 0.5)) .. 'M'
+            else
+                mode = 'ON'
+            end
+        elseif type(proximity) == 'number' then
+            if proximity == 1 then
+                mode = 'WHISPER'
+            elseif proximity == 2 then
+                mode = 'NORMAL'
+            elseif proximity == 3 then
+                mode = 'SHOUT'
+            else
+                mode = 'ON'
+            end
+        elseif proximity ~= nil then
+            mode = 'ON'
+        elseif talking then
+            mode = 'ON'
+        end
+    elseif talking then
+        mode = 'ON'
+    end
+
+    return {
+        talking = talking,
+        mode = mode
+    }
+end
+
+local function getAmmoInfo(ped)
+    local weapon = GetSelectedPedWeapon(ped)
+
+    if weapon == joaat('WEAPON_UNARMED') then
+        return false, 0, 0
+    end
+
+    -- Flag 4 keeps the ammo card for firearms only, not fists/melee/tools.
+    if not IsPedArmed(ped, 4) then
+        return false, 0, 0
+    end
+
+    local total = GetAmmoInPedWeapon(ped, weapon)
+    local hasClip, clip = GetAmmoInClip(ped, weapon)
+    clip = (hasClip and clip) or 0
+
+    local reserve = math.max((tonumber(total) or 0) - clip, 0)
+
+    -- Keep the card visible even when ammo reaches 0/0.
+    return true, clip, reserve
+end
+
+local function updatePlayerCount()
+    QBCore.Functions.TriggerCallback('gcr-hud:server:getPlayerCount', function(count)
+        playerCount = tonumber(count) or 0
+    end)
+end
+
+RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
+    PlayerData = QBCore.Functions.GetPlayerData() or {}
+    loadInjuriesFromMetadata()
+
+    hudVisible = true
+    local ped = PlayerPedId()
+    lastHealth = GetEntityHealth(ped)
+    lastArmor = GetPedArmour(ped)
+
+    updatePlayerCount()
+    SendNUIMessage({ action = 'visible', visible = true })
+end)
+
+RegisterNetEvent('QBCore:Client:OnPlayerUnload', function()
+    PlayerData = {}
+    hudVisible = false
+    clearInjuries(false)
+    SendNUIMessage({ action = 'visible', visible = false })
+end)
+
+RegisterNetEvent('QBCore:Player:SetPlayerData', function(data)
+    PlayerData = data or {}
+
+    local metadata = PlayerData.metadata or {}
+    if type(metadata.injuries) == 'table' then
+        injuries = cleanInjuryTable(metadata.injuries)
+    end
+end)
+
+-- Keep standard QBCore hunger/thirst events compatible.
+-- This HUD shows Hunger, Thirst, Stress, and Run together.
+RegisterNetEvent('hud:client:UpdateNeeds', function(newHunger, newThirst)
+    PlayerData.metadata = PlayerData.metadata or {}
+    PlayerData.metadata.hunger = tonumber(newHunger) or PlayerData.metadata.hunger or 100
+    PlayerData.metadata.thirst = tonumber(newThirst) or PlayerData.metadata.thirst or 100
+end)
+
+RegisterNetEvent('hud:client:UpdateStress', function(newStress)
+    PlayerData.metadata = PlayerData.metadata or {}
+    PlayerData.metadata.stress = tonumber(newStress) or PlayerData.metadata.stress or 0
+end)
+
+RegisterNetEvent('hud:client:ShowHud', function()
+    hudVisible = true
+    SendNUIMessage({ action = 'visible', visible = true })
+end)
+
+RegisterNetEvent('hud:client:HideHud', function()
+    hudVisible = false
+    SendNUIMessage({ action = 'visible', visible = false })
+end)
+
+RegisterNetEvent('gcr-hud:client:clearInjuries', function()
+    clearInjuries(true)
+end)
+
+if Config.ClearInjuriesOnRevive then
+    RegisterNetEvent('hospital:client:Revive', function()
+        clearInjuries(true)
+    end)
+
+    RegisterNetEvent('hospital:client:RespawnAtHospital', function()
+        clearInjuries(true)
+    end)
+end
+
+RegisterCommand('hud', function()
+    hudVisible = not hudVisible
+    SendNUIMessage({ action = 'visible', visible = hudVisible })
+end, false)
+
+-- Useful while testing the body detector.
+RegisterCommand('clearinjury', function()
+    clearInjuries(true)
+end, false)
+
+CreateThread(function()
+    Wait(1500)
+
+    refreshPlayerData()
+    loadInjuriesFromMetadata()
+    updatePlayerCount()
+
+    local ped = PlayerPedId()
+    lastHealth = GetEntityHealth(ped)
+    lastArmor = GetPedArmour(ped)
+
+    while true do
+        updatePlayerCount()
+        Wait(Config.PlayerCountRefresh)
+    end
+end)
+
+-- Hide map during gameplay. ESC / pause menu makes it visible again.
+CreateThread(function()
+    while true do
+        if Config.HideMinimapInGameplay then
+            local paused = IsPauseMenuActive()
+            DisplayRadar(paused)
+
+            if not paused then
+                SetRadarBigmapEnabled(false, false)
+            end
+        end
+
+        Wait(150)
+    end
+end)
+
+-- Injury detector. It watches BOTH health and armor loss so a bullet that hits
+-- armor can still mark the body part red.
+CreateThread(function()
+    while true do
+        if Config.EnableBodyInjury then
+            local ped = PlayerPedId()
+            local currentHealth = GetEntityHealth(ped)
+            local currentArmor = GetPedArmour(ped)
+
+            if lastHealth == nil then lastHealth = currentHealth end
+            if lastArmor == nil then lastArmor = currentArmor end
+
+            local tookDamage = currentHealth < lastHealth or currentArmor < lastArmor
+
+            if tookDamage and not IsEntityDead(ped) then
+                local success, bone = GetPedLastDamageBone(ped)
+
+                if success and bone then
+                    markInjury(getBoneZone(bone))
+                else
+                    markInjury('torso')
+                end
+            end
+
+            if not Config.PersistInjuries then
+                local now = GetGameTimer()
+                local changed = false
+
+                for zone, expireAt in pairs(injuryExpire) do
+                    if expireAt and now >= expireAt then
+                        injuries[zone] = false
+                        injuryExpire[zone] = nil
+                        changed = true
+                    end
+                end
+
+                if changed then
+                    saveInjuries()
+                end
+            end
+
+            lastHealth = currentHealth
+            lastArmor = currentArmor
+        end
+
+        Wait(100)
+    end
+end)
+
+CreateThread(function()
+    while true do
+        if hudVisible then
+            local ped = PlayerPedId()
+            local playerId = PlayerId()
+
+            PlayerData = QBCore.Functions.GetPlayerData() or PlayerData
+
+            local hunger, thirst, stress = getNeeds()
+            local health = getHealthPercent(ped)
+            local armor = math.floor(clamp(GetPedArmour(ped), 0, 100))
+            local stamina = math.floor(clamp(GetPlayerSprintStaminaRemaining(playerId), 0, 100) + 0.5)
+            local ammoVisible, ammoClip, ammoReserve = getAmmoInfo(ped)
+            local voice = getVoiceData()
+
+            local vehicleData = nil
+
+            if Config.ShowVehicleHud and IsPedInAnyVehicle(ped, false) then
+                local vehicle = GetVehiclePedIsIn(ped, false)
+                vehicleData = {
+                    speed = math.floor(GetEntitySpeed(vehicle) * 3.6 + 0.5),
+                    fuel = math.floor(clamp(GetVehicleFuelLevel(vehicle), 0, 100) + 0.5),
+                    engine = math.floor(clamp(GetVehicleEngineHealth(vehicle) / 10.0, 0, 100) + 0.5)
+                }
+            end
+
+            SendNUIMessage({
+                action = 'update',
+                data = {
+                    serverName = Config.ServerName,
+                    serverId = GetPlayerServerId(playerId),
+                    playerCount = playerCount,
+                    cash = moneyValue('cash'),
+                    bank = moneyValue('bank'),
+                    job = getJobText(),
+                    gang = getGangText(),
+                    health = health,
+                    armor = armor,
+                    hunger = hunger,
+                    thirst = thirst,
+                    stress = stress,
+                    stamina = stamina,
+                    voice = voice,
+                    injuries = injuries,
+                    ammoVisible = ammoVisible,
+                    ammoClip = ammoClip,
+                    ammoReserve = ammoReserve,
+                    vehicle = vehicleData
+                }
+            })
+        end
+
+        Wait(Config.RefreshRate)
+    end
+end)
+
+================ server.lua ================
+local QBCore = exports['qb-core']:GetCoreObject()
+
+local function clamp(value, minValue, maxValue)
+    value = tonumber(value) or 0
+    if value < minValue then return minValue end
+    if value > maxValue then return maxValue end
+    return value
+end
+
+local function sanitizeInjuries(data)
+    data = type(data) == 'table' and data or {}
+
+    return {
+        head = data.head == true,
+        torso = data.torso == true,
+        leftarm = data.leftarm == true,
+        rightarm = data.rightarm == true,
+        leftleg = data.leftleg == true,
+        rightleg = data.rightleg == true
+    }
+end
+
+QBCore.Functions.CreateCallback('gcr-hud:server:getPlayerCount', function(_, cb)
+    cb(#GetPlayers())
+end)
+
+RegisterNetEvent('gcr-hud:server:setInjuries', function(data)
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
+    if not Player then return end
+
+    Player.Functions.SetMetaData('injuries', sanitizeInjuries(data))
+end)
+
+local function gainStress(src, amount)
+    local Player = QBCore.Functions.GetPlayer(src)
+    if not Player then return end
+
+    local metadata = Player.PlayerData.metadata or {}
+    local current = tonumber(metadata.stress) or 0
+    local value = math.floor(clamp(current + math.abs(tonumber(amount) or 0), 0, 100))
+
+    Player.Functions.SetMetaData('stress', value)
+    TriggerClientEvent('hud:client:UpdateStress', src, value)
+end
+
+local function relieveStress(src, amount)
+    local Player = QBCore.Functions.GetPlayer(src)
+    if not Player then return end
+
+    local metadata = Player.PlayerData.metadata or {}
+    local current = tonumber(metadata.stress) or 0
+    local value = math.floor(clamp(current - math.abs(tonumber(amount) or 0), 0, 100))
+
+    Player.Functions.SetMetaData('stress', value)
+    TriggerClientEvent('hud:client:UpdateStress', src, value)
+end
+
+-- Standard qb-hud compatible event names.
+RegisterNetEvent('hud:server:GainStress', function(amount)
+    gainStress(source, amount)
+end)
+
+RegisterNetEvent('hud:server:RelieveStress', function(amount)
+    relieveStress(source, amount)
+end)
+
+-- GCR aliases, useful for your own resources.
+RegisterNetEvent('gcr-hud:server:GainStress', function(amount)
+    gainStress(source, amount)
+end)
+
+RegisterNetEvent('gcr-hud:server:RelieveStress', function(amount)
+    relieveStress(source, amount)
+end)
+
+================ html/hud.html ================
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grand Country Roleplay HUD</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="hud" class="hud hidden">
+
+    <section id="bodyCard" class="body-card panel">
+        <header class="body-header">
+            <div>
+                <strong>PLAYER</strong>
+                <small>CONDITION</small>
+            </div>
+            <span id="conditionState" class="condition-state safe">SAFE</span>
+        </header>
+
+        <div class="body-visual">
+            <img src="../images/body.png" class="body-image" alt="Body condition">
+
+            <span id="injHead" class="injury-zone zone-head"></span>
+            <span id="injTorso" class="injury-zone zone-torso"></span>
+            <span id="injLeftArm" class="injury-zone zone-left-arm"></span>
+            <span id="injRightArm" class="injury-zone zone-right-arm"></span>
+            <span id="injLeftLeg" class="injury-zone zone-left-leg"></span>
+            <span id="injRightLeg" class="injury-zone zone-right-leg"></span>
+        </div>
+
+        <i class="cut cut-tl"></i>
+        <i class="cut cut-tr"></i>
+        <i class="cut cut-bl"></i>
+        <i class="cut cut-br"></i>
+    </section>
+
+    <aside class="info-stack">
+        <div class="server-title">GRAND COUNTRY <span>ROLEPLAY</span></div>
+
+        <section id="profileCard" class="profile-card panel">
+            <div class="profile-info">
+                <div class="profile-line main-line">
+                    <span class="ico user-ico"></span>
+                    <strong id="serverId">#0</strong>
+                </div>
+                <div class="profile-line">
+                    <span class="ico calendar-ico"></span>
+                    <span id="dateText">--/--/----</span>
+                </div>
+                <div class="profile-line">
+                    <span class="ico clock-ico"></span>
+                    <span id="timeText">--:--</span>
+                </div>
+            </div>
+
+            <div id="logoBox" class="logo-box">
+                <img src="../images/logo.png" class="server-logo" alt="GCR logo">
+            </div>
+        </section>
+
+        <section class="info-row panel">
+            <span class="row-icon people-ico"></span>
+            <span id="playerCount">0 Players</span>
+        </section>
+
+        <section class="info-row panel split-row">
+            <span class="row-icon cash-ico"></span>
+            <span class="row-label">Cash</span>
+            <strong id="cash">$0</strong>
+        </section>
+
+        <section class="info-row panel split-row">
+            <span class="row-icon bank-ico"></span>
+            <span class="row-label">Bank</span>
+            <strong id="bank">$0</strong>
+        </section>
+
+        <div class="row-gap"></div>
+
+        <section class="info-row panel">
+            <span class="row-icon job-ico"></span>
+            <span id="job">Civilian - Freelancer</span>
+        </section>
+
+        <section class="info-row panel">
+            <span class="row-icon people-ico"></span>
+            <span id="gang">No Gang - Unaffiliated</span>
+        </section>
+
+        <section id="ammoCard" class="ammo-card panel hidden-card">
+            <div class="ammo-left">
+                <svg class="gun-icon" viewBox="0 0 64 40" aria-hidden="true">
+                    <path d="M8 9H43L51 14V20H39L34 27H27L29 20H8Z"></path>
+                    <path d="M30 20H39L35 35H25Z"></path>
+                </svg>
+                <span>Ammo</span>
+            </div>
+
+            <div class="ammo-count">
+                <strong id="ammoClip">0</strong>
+                <span>/</span>
+                <span id="ammoReserve">0</span>
+            </div>
+
+            <div class="bullet-icons" aria-hidden="true">
+                <i></i><i></i><i></i>
+            </div>
+        </section>
+    </aside>
+
+    <section class="status-stack">
+        <!-- HEALTH & ARMOR remain compact bars -->
+        <div class="status-row panel">
+            <div class="status-badge">❤️</div>
+            <div class="status-content">
+                <div class="status-caption"><span>HEALTH</span><b id="healthText">100%</b></div>
+                <div class="bar-shell"><div id="healthBar" class="bar-fill health-fill"></div></div>
+            </div>
+        </div>
+
+        <div class="status-row panel">
+            <div class="status-badge">🛡️</div>
+            <div class="status-content">
+                <div class="status-caption"><span>ARMOR</span><b id="armorText">0%</b></div>
+                <div class="bar-shell"><div id="armorBar" class="bar-fill armor-fill"></div></div>
+            </div>
+        </div>
+
+        <!-- IME style circular quick status -->
+        <div class="circle-status-wrap">
+            <div id="voiceCircle" class="circle-status">
+                <div class="circle-core"><span>🎤</span></div>
+                <span id="voiceText" class="circle-value">OFF</span>
+                <small class="circle-label">MIC</small>
+            </div>
+
+            <div id="hungerCircle" class="circle-status">
+                <div class="circle-core"><span>🍔</span></div>
+                <span id="hungerValue" class="circle-value">100%</span>
+                <small class="circle-label">MAKAN</small>
+            </div>
+
+            <div id="thirstCircle" class="circle-status">
+                <div class="circle-core"><span>💧</span></div>
+                <span id="thirstValue" class="circle-value">100%</span>
+                <small class="circle-label">MINUM</small>
+            </div>
+
+            <div id="stressCircle" class="circle-status">
+                <div class="circle-core"><span>😵</span></div>
+                <span id="stressValue" class="circle-value">0%</span>
+                <small class="circle-label">STRESS</small>
+            </div>
+
+            <div id="staminaCircle" class="circle-status">
+                <div class="circle-core"><span>🏃</span></div>
+                <span id="staminaValue" class="circle-value">100%</span>
+                <small class="circle-label">LARI</small>
+            </div>
+        </div>
+    </section>
+
+    <section id="vehicleHud" class="vehicle-hud panel hidden-card">
+        <div><strong id="vehicleSpeed">0</strong><small> KM/H</small></div>
+        <div>FUEL <b id="vehicleFuel">100%</b></div>
+        <div>ENGINE <b id="vehicleEngine">100%</b></div>
+    </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
+
+================ html/style.css ================
+:root {
+    --orange: #ff7600;
+    --orange-soft: rgba(255, 118, 0, .16);
+    --orange-line: rgba(255, 118, 0, .82);
+    --white: #f7f7f7;
+    --muted: rgba(255, 255, 255, .62);
+    --danger: #ff3d3d;
+}
+
+* {
+    box-sizing: border-box;
+    user-select: none;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: transparent !important;
+    color: var(--white);
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+body {
+    pointer-events: none;
+}
+
+.hud {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity .16s ease;
+}
+
+.hud.hidden {
+    opacity: 0;
+}
+
+.panel {
+    background: transparent;
+    border: 1px solid var(--orange-line);
+    box-shadow:
+        0 0 8px rgba(255, 118, 0, .16),
+        inset 0 0 10px rgba(255, 118, 0, .02);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+/* ---------------- BODY DETECTOR ---------------- */
+.body-card {
+    position: absolute;
+    left: 1.2vw;
+    top: 2.6vh;
+    width: 8.9vw;
+    min-width: 132px;
+    max-width: 160px;
+    height: 38vh;
+    min-height: 300px;
+    max-height: 385px;
+    border-radius: 14px 5px 14px 5px;
+    padding: 10px;
+}
+
+.body-header {
+    height: 38px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .75);
+}
+
+.body-header strong {
+    display: block;
+    font-size: 12px;
+    letter-spacing: 1.2px;
+}
+
+.body-header small {
+    display: block;
+    margin-top: 1px;
+    color: var(--muted);
+    font-size: 8px;
+    letter-spacing: .9px;
+}
+
+.condition-state {
+    padding: 3px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 118, 0, .42);
+    color: #ffc089;
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: .8px;
+    background: rgba(255, 118, 0, .04);
+}
+
+.condition-state.danger {
+    color: #fff;
+    border-color: rgba(255, 61, 61, .95);
+    background: rgba(255, 61, 61, .20);
+    box-shadow: 0 0 8px rgba(255, 61, 61, .24);
+}
+
+.body-visual {
+    position: relative;
+    height: calc(100% - 38px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.body-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    opacity: .95;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, .06));
+}
+
+.injury-zone {
+    position: absolute;
+    z-index: 2;
+    display: block;
+    opacity: 0;
+    background: radial-gradient(circle, rgba(255, 40, 40, .80) 0%, rgba(255, 40, 40, .42) 48%, rgba(255, 40, 40, 0) 74%);
+    filter: drop-shadow(0 0 8px rgba(255, 0, 0, .80));
+    mix-blend-mode: screen;
+    transition: opacity .18s ease;
+}
+
+.injury-zone.active {
+    opacity: 1;
+    animation: injuryPulse 1.25s ease-in-out infinite alternate;
+}
+
+.zone-head {
+    left: 40%;
+    top: 4%;
+    width: 20%;
+    height: 13%;
+    border-radius: 50%;
+}
+
+.zone-torso {
+    left: 30%;
+    top: 17%;
+    width: 40%;
+    height: 34%;
+    border-radius: 42%;
+}
+
+.zone-left-arm {
+    left: 13%;
+    top: 20%;
+    width: 20%;
+    height: 37%;
+    border-radius: 50%;
+    transform: rotate(7deg);
+}
+
+.zone-right-arm {
+    right: 13%;
+    top: 20%;
+    width: 20%;
+    height: 37%;
+    border-radius: 50%;
+    transform: rotate(-7deg);
+}
+
+.zone-left-leg {
+    left: 31%;
+    top: 48%;
+    width: 20%;
+    height: 47%;
+    border-radius: 46%;
+    transform: rotate(2deg);
+}
+
+.zone-right-leg {
+    right: 31%;
+    top: 48%;
+    width: 20%;
+    height: 47%;
+    border-radius: 46%;
+    transform: rotate(-2deg);
+}
+
+@keyframes injuryPulse {
+    from { filter: drop-shadow(0 0 4px rgba(255, 0, 0, .45)); }
+    to   { filter: drop-shadow(0 0 11px rgba(255, 0, 0, .95)); }
+}
+
+.cut {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-color: var(--orange);
+    border-style: solid;
+    filter: drop-shadow(0 0 4px rgba(255, 118, 0, .45));
+}
+
+.cut-tl { left: -2px; top: -2px; border-width: 3px 0 0 3px; }
+.cut-tr { right: -2px; top: -2px; border-width: 3px 3px 0 0; }
+.cut-bl { left: -2px; bottom: -2px; border-width: 0 0 3px 3px; }
+.cut-br { right: -2px; bottom: -2px; border-width: 0 3px 3px 0; }
+
+/* ---------------- RIGHT STACK ---------------- */
+.info-stack {
+    position: absolute;
+    top: 2.7vh;
+    right: 1.35vw;
+    width: 18vw;
+    min-width: 258px;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.server-title {
+    margin: 0 3px 2px 0;
+    text-align: right;
+    color: #ffb16a;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 2.1px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
+}
+
+.server-title span {
+    color: rgba(255, 255, 255, .76);
+}
+
+.profile-card {
+    min-height: 102px;
+    padding: 9px 9px 9px 13px;
+    border-radius: 13px 5px 13px 5px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.profile-info {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.profile-line {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 16px;
+    font-size: 11px;
+    font-weight: 650;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
+}
+
+.main-line {
+    color: #ffb16a;
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.ico,
+.row-icon {
+    position: relative;
+    display: inline-block;
+    flex: 0 0 auto;
+    color: var(--orange);
+}
+
+.user-ico {
+    width: 12px;
+    height: 12px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+}
+
+.user-ico::after {
+    content: "";
+    position: absolute;
+    left: -5px;
+    top: 12px;
+    width: 18px;
+    height: 8px;
+    border: 2px solid currentColor;
+    border-bottom: 0;
+    border-radius: 10px 10px 0 0;
+}
+
+.calendar-ico {
+    width: 14px;
+    height: 13px;
+    border: 2px solid currentColor;
+    border-radius: 2px;
+}
+
+.calendar-ico::before {
+    content: "";
+    position: absolute;
+    left: 1px;
+    right: 1px;
+    top: 3px;
+    border-top: 2px solid currentColor;
+}
+
+.clock-ico {
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+}
+
+.clock-ico::before {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 2px;
+    width: 2px;
+    height: 5px;
+    background: currentColor;
+    border-radius: 3px;
+}
+
+.clock-ico::after {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: 6px;
+    width: 4px;
+    height: 2px;
+    background: currentColor;
+    border-radius: 3px;
+}
+
+.logo-box {
+    width: 80px;
+    height: 62px;
+    border-radius: 10px 4px 10px 4px;
+    border: 1px solid rgba(255, 118, 0, .82);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    box-shadow: inset 0 0 10px rgba(255, 118, 0, .05);
+}
+
+.logo-box.danger {
+    border-color: rgba(255, 61, 61, .95);
+    box-shadow: 0 0 12px rgba(255, 61, 61, .24);
+}
+
+.server-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 4px;
+}
+
+.info-row,
+.ammo-card {
+    min-height: 46px;
+    padding: 0 12px;
+    border-radius: 11px 4px 11px 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .85);
+}
+
+.split-row strong {
+    margin-left: auto;
+    color: #ffb16a;
+    font-size: 13px;
+}
+
+.row-label {
+    color: rgba(255, 255, 255, .80);
+}
+
+.row-gap {
+    height: 2px;
+}
+
+.people-ico,
+.job-ico {
+    width: 15px;
+    height: 11px;
+}
+
+.people-ico::before,
+.job-ico::before {
+    content: "";
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    left: 0;
+    top: -2px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+}
+
+.people-ico::after,
+.job-ico::after {
+    content: "";
+    position: absolute;
+    width: 15px;
+    height: 8px;
+    left: -4px;
+    top: 7px;
+    border: 2px solid currentColor;
+    border-bottom: 0;
+    border-radius: 10px 10px 0 0;
+}
+
+.cash-ico {
+    width: 16px;
+    height: 12px;
+    border: 2px solid currentColor;
+    border-radius: 3px;
+}
+
+.cash-ico::after {
+    content: "$";
+    position: absolute;
+    inset: -5px 0 0 0;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.bank-ico {
+    width: 17px;
+    height: 11px;
+    border-bottom: 3px solid currentColor;
+}
+
+.bank-ico::before {
+    content: "";
+    position: absolute;
+    left: -1px;
+    top: -7px;
+    width: 0;
+    height: 0;
+    border-left: 9px solid transparent;
+    border-right: 9px solid transparent;
+    border-bottom: 7px solid currentColor;
+}
+
+.job-ico {
+    width: 16px;
+    height: 12px;
+    border: 2px solid currentColor;
+    border-radius: 3px;
+}
+
+.job-ico::before {
+    content: "";
+    position: absolute;
+    width: 7px;
+    height: 4px;
+    left: 2px;
+    top: -6px;
+    border: 2px solid currentColor;
+    border-bottom: 0;
+    border-radius: 3px 3px 0 0;
+}
+
+.ammo-card {
+    justify-content: space-between;
+    min-height: 48px;
+}
+
+.ammo-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gun-icon {
+    width: 30px;
+    height: 20px;
+    fill: var(--orange);
+    filter: drop-shadow(0 0 4px rgba(255, 118, 0, .32));
+}
+
+.ammo-count {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-left: auto;
+    color: #ffb16a;
+}
+
+.ammo-count strong {
+    font-size: 17px;
+}
+
+.bullet-icons {
+    display: flex;
+    gap: 3px;
+    margin-left: 10px;
+}
+
+.bullet-icons i {
+    display: block;
+    width: 4px;
+    height: 16px;
+    border-radius: 3px;
+    background: var(--orange);
+    box-shadow: 0 0 5px rgba(255, 118, 0, .28);
+}
+
+.hidden-card {
+    display: none !important;
+}
+
+/* ---------------- STATUS STACK ---------------- */
+.status-stack {
+    position: absolute;
+    left: 1.55vw;
+    bottom: 3.8vh;
+    width: 19.5vw;
+    min-width: 285px;
+    max-width: 335px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+/* Health + armor stay as slim horizontal bars */
+.status-row {
+    min-height: 40px;
+    border-radius: 20px;
+    padding: 4px 10px 4px 4px;
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-badge {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 118, 0, .96);
+    background: transparent;
+    box-shadow: 0 0 7px rgba(255, 118, 0, .16);
+    font-size: 15px;
+    line-height: 1;
+}
+
+.status-content {
+    min-width: 0;
+}
+
+.status-caption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .7px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .75);
+}
+
+.status-caption span {
+    color: rgba(255, 255, 255, .92);
+}
+
+.status-caption b {
+    color: #fff;
+}
+
+.bar-shell {
+    position: relative;
+    width: 100%;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, .045);
+    border: 1px solid rgba(255, 118, 0, .13);
+}
+
+.bar-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #ff6a00, #ffa23c);
+    box-shadow: 0 0 6px rgba(255, 118, 0, .32);
+    transition: width .16s linear;
+}
+
+/* IME-like round quick status: mic, food, water, stress, run */
+.circle-status-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 3px;
+}
+
+.circle-status {
+    --value: 100;
+    --ring-color: #ff7600;
+    width: 48px;
+    min-height: 68px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 2px;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+.circle-core {
+    position: relative;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: transparent;
+    box-shadow: 0 0 8px rgba(255, 118, 0, .16);
+    transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+
+.circle-core::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(var(--ring-color) calc(var(--value) * 1%), rgba(255, 255, 255, .12) 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));
+}
+
+.circle-core::after {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid rgba(255, 118, 0, .26);
+}
+
+.circle-core span {
+    position: relative;
+    z-index: 2;
+    font-size: 18px;
+    line-height: 1;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .75));
+}
+
+.circle-value {
+    min-height: 10px;
+    color: #ffb16a;
+    font-size: 8px;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: .2px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .85);
+}
+
+.circle-label {
+    color: rgba(255, 255, 255, .88);
+    font-size: 7px;
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: .45px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .85);
+}
+
+.circle-status.active {
+    --ring-color: #42f5b3;
+}
+
+.circle-status.active .circle-core {
+    transform: scale(1.06);
+    box-shadow: 0 0 12px rgba(66, 245, 179, .42);
+}
+
+#stressCircle.high {
+    --ring-color: #ff4545;
+}
+
+#stressCircle.high .circle-core {
+    box-shadow: 0 0 11px rgba(255, 69, 69, .34);
+}
+
+#stressCircle.high .circle-value {
+    color: #ff7474;
+}
+
+#hungerCircle.low,
+#thirstCircle.low,
+#staminaCircle.low {
+    --ring-color: #ff9a24;
+}
+
+#hungerCircle.critical,
+#thirstCircle.critical,
+#staminaCircle.critical {
+    --ring-color: #ff4545;
+}
+
+#hungerCircle.critical .circle-core,
+#thirstCircle.critical .circle-core,
+#staminaCircle.critical .circle-core {
+    box-shadow: 0 0 10px rgba(255, 69, 69, .28);
+}
+
+/* ---------------- VEHICLE HUD ---------------- */
+.vehicle-hud {
+    position: absolute;
+    left: 50%;
+    bottom: 3vh;
+    transform: translateX(-50%);
+    min-width: 300px;
+    height: 50px;
+    padding: 0 16px;
+    border-radius: 14px 6px 14px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 16px;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.vehicle-hud > div:first-child {
+    color: #ffb16a;
+    font-size: 18px;
+}
+
+.vehicle-hud small {
+    color: rgba(255, 255, 255, .65);
+    font-size: 9px;
+}
+
+.vehicle-hud b {
+    color: #ffb16a;
+}
+
+@media (max-width: 1366px) {
+    .body-card {
+        min-width: 122px;
+        height: 36vh;
+    }
+
+    .info-stack {
+        min-width: 245px;
+    }
+
+    .status-stack {
+        min-width: 275px;
+        max-width: 300px;
+    }
+
+    .circle-status-wrap {
+        gap: 5px;
+    }
+
+    .circle-status {
+        width: 50px;
+        height: 60px;
+    }
+}
+
+
+================ html/app.js ================
+const hud = document.getElementById('hud');
+const ammoCard = document.getElementById('ammoCard');
+const vehicleHud = document.getElementById('vehicleHud');
+const conditionState = document.getElementById('conditionState');
+const logoBox = document.getElementById('logoBox');
+
+const el = (id) => document.getElementById(id);
+
+const money = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0
+});
+
+function clamp(value) {
+    value = Number(value) || 0;
+    return Math.max(0, Math.min(100, value));
+}
+
+function setBar(name, value) {
+    const amount = clamp(value);
+    const bar = el(`${name}Bar`);
+    const text = el(`${name}Text`);
+
+    if (bar) bar.style.width = `${amount}%`;
+    if (text) text.textContent = `${Math.round(amount)}%`;
+}
+
+function setCircleValue(name, value, lowAt = null, criticalAt = null) {
+    const amount = clamp(value);
+    const valueElement = el(`${name}Value`);
+    const circle = el(`${name}Circle`);
+
+    if (valueElement) {
+        valueElement.textContent = `${Math.round(amount)}%`;
+    }
+
+    if (circle) {
+        circle.style.setProperty('--value', amount);
+
+        if (lowAt !== null) {
+            circle.classList.toggle('low', amount <= lowAt);
+        }
+
+        if (criticalAt !== null) {
+            circle.classList.toggle('critical', amount <= criticalAt);
+        }
+    }
+}
+
+function updateVoice(data) {
+    const voice = data || {};
+    const talking = !!voice.talking;
+    const mode = voice.mode || 'OFF';
+    const circle = el('voiceCircle');
+    const text = el('voiceText');
+
+    if (circle) {
+        circle.classList.toggle('active', talking);
+        circle.style.setProperty('--value', talking ? 100 : 35);
+    }
+    if (text) text.textContent = String(mode).toUpperCase().slice(0, 7);
+}
+
+function setInjuries(data) {
+    const injuries = data || {};
+
+    const bodyMap = {
+        injHead: !!injuries.head,
+        injTorso: !!injuries.torso,
+        injLeftArm: !!injuries.leftarm,
+        injRightArm: !!injuries.rightarm,
+        injLeftLeg: !!injuries.leftleg,
+        injRightLeg: !!injuries.rightleg
+    };
+
+    let injured = false;
+
+    Object.entries(bodyMap).forEach(([id, active]) => {
+        const zone = el(id);
+        if (zone) zone.classList.toggle('active', active);
+        if (active) injured = true;
+    });
+
+    if (conditionState) {
+        conditionState.textContent = injured ? 'INJURED' : 'SAFE';
+        conditionState.classList.toggle('danger', injured);
+        conditionState.classList.toggle('safe', !injured);
+    }
+
+    if (logoBox) {
+        logoBox.classList.toggle('danger', injured);
+    }
+}
+
+function updateStressStyle(value) {
+    const stress = clamp(value);
+    const circle = el('stressCircle');
+
+    if (circle) {
+        circle.classList.toggle('high', stress >= 70);
+        circle.style.setProperty('--value', stress);
+    }
+}
+
+function updateClock() {
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+
+    el('dateText').textContent = `${dd}/${mm}/${yyyy}`;
+    el('timeText').textContent = `${hh}:${min}`;
+}
+
+setInterval(updateClock, 1000);
+updateClock();
+
+window.addEventListener('message', (event) => {
+    const message = event.data || {};
+
+    if (message.action === 'visible') {
+        hud.classList.toggle('hidden', !message.visible);
+        return;
+    }
+
+    if (message.action !== 'update' || !message.data) return;
+
+    const data = message.data;
+
+    hud.classList.remove('hidden');
+
+    el('serverId').textContent = `#${data.serverId ?? 0}`;
+    el('playerCount').textContent = `${data.playerCount ?? 0} Players`;
+    el('cash').textContent = money.format(Number(data.cash) || 0);
+    el('bank').textContent = money.format(Number(data.bank) || 0);
+    el('job').textContent = data.job || 'Civilian - Freelancer';
+    el('gang').textContent = data.gang || 'No Gang - Unaffiliated';
+
+    setBar('health', data.health);
+    setBar('armor', data.armor);
+
+    setCircleValue('hunger', data.hunger, 25, 10);
+    setCircleValue('thirst', data.thirst, 25, 10);
+    setCircleValue('stress', data.stress);
+    setCircleValue('stamina', data.stamina, 20, 8);
+
+    updateVoice(data.voice);
+    updateStressStyle(data.stress);
+    setInjuries(data.injuries);
+
+    if (data.ammoVisible) {
+        ammoCard.classList.remove('hidden-card');
+        el('ammoClip').textContent = Number(data.ammoClip) || 0;
+        el('ammoReserve').textContent = Number(data.ammoReserve) || 0;
+    } else {
+        ammoCard.classList.add('hidden-card');
+    }
+
+    if (data.vehicle) {
+        vehicleHud.classList.remove('hidden-card');
+        el('vehicleSpeed').textContent = data.vehicle.speed ?? 0;
+        el('vehicleFuel').textContent = `${data.vehicle.fuel ?? 0}%`;
+        el('vehicleEngine').textContent = `${data.vehicle.engine ?? 0}%`;
+    } else {
+        vehicleHud.classList.add('hidden-card');
+    }
+});
+
+================ check_database.sql ================
+-- Check the QBCore players structure and HUD metadata.
+
+SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = 'players'
+  AND COLUMN_NAME IN (
+      'citizenid', 'money', 'job', 'gang', 'metadata',
+      'position', 'inventory', 'last_updated'
+  )
+ORDER BY ORDINAL_POSITION;
+
+SELECT
+    COUNT(*) AS total_players,
+    SUM(CASE WHEN metadata IS NULL OR metadata = '' THEN 1 ELSE 0 END) AS empty_metadata,
+    SUM(CASE WHEN metadata IS NOT NULL AND metadata <> '' AND JSON_VALID(metadata) = 0 THEN 1 ELSE 0 END) AS invalid_metadata
+FROM players;
+
+SELECT
+    citizenid,
+    JSON_EXTRACT(metadata, '$.hunger') AS hunger,
+    JSON_EXTRACT(metadata, '$.thirst') AS thirst,
+    JSON_EXTRACT(metadata, '$.stress') AS stress,
+    JSON_EXTRACT(metadata, '$.injuries') AS injuries
+FROM players
+LIMIT 20;
+
+================ database_patch.sql ================
+-- ============================================================
+-- Grand Country Roleplay - qb-hud metadata patch
+-- Database shown by the user already has the required QBCore
+-- players columns. This patch DOES NOT add/remove columns.
+-- It only makes sure HUD metadata keys exist inside players.metadata.
+-- Existing metadata values are preserved.
+-- ============================================================
+
+START TRANSACTION;
+
+UPDATE players
+SET metadata = CAST(
+    JSON_MERGE_PATCH(
+        JSON_OBJECT(
+            'hunger', 100,
+            'thirst', 100,
+            'stress', 0,
+            'armor', 0,
+            'isdead', FALSE,
+            'inlaststand', FALSE,
+            'injuries', JSON_OBJECT(
+                'head', FALSE,
+                'torso', FALSE,
+                'leftarm', FALSE,
+                'rightarm', FALSE,
+                'leftleg', FALSE,
+                'rightleg', FALSE
+            )
+        ),
+        CASE
+            WHEN metadata IS NOT NULL
+                 AND metadata <> ''
+                 AND JSON_VALID(metadata)
+            THEN CAST(metadata AS JSON)
+            ELSE JSON_OBJECT()
+        END
+    ) AS CHAR CHARACTER SET utf8mb4
+);
+
+COMMIT;
+
+SELECT
+    citizenid,
+    JSON_EXTRACT(metadata, '$.hunger') AS hunger,
+    JSON_EXTRACT(metadata, '$.thirst') AS thirst,
+    JSON_EXTRACT(metadata, '$.stress') AS stress,
+    JSON_EXTRACT(metadata, '$.injuries') AS injuries
+FROM players
+LIMIT 25;
+
+================ 01_check_database.cmd ================
+@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+
+title GCR HUD - Check Database
+
+echo ==============================================
+echo   Grand Country Roleplay - Database Checker
+echo ==============================================
+echo.
+
+set "MYSQL=mysql"
+if exist "C:\laragon\bin\mysql" (
+    for /f "delims=" %%D in ('dir /b /ad /o-n "C:\laragon\bin\mysql\mysql-*" 2^>nul') do (
+        if exist "C:\laragon\bin\mysql\%%D\bin\mysql.exe" (
+            set "MYSQL=C:\laragon\bin\mysql\%%D\bin\mysql.exe"
+            goto :mysql_found
+        )
+    )
+)
+
+:mysql_found
+set "DB=qbcoredb"
+set "USER=root"
+set /p DBINPUT=Database name [qbcoredb]: 
+if not "%DBINPUT%"=="" set "DB=%DBINPUT%"
+set /p PASS=MySQL password [ENTER if empty]: 
+
+echo.
+echo Checking database %DB%...
+echo.
+
+if "%PASS%"=="" (
+    "%MYSQL%" -u "%USER%" "%DB%" < "%~dp0check_database.sql"
+) else (
+    "%MYSQL%" -u "%USER%" -p"%PASS%" "%DB%" < "%~dp0check_database.sql"
+)
+
+if errorlevel 1 (
+    echo.
+    echo ERROR: Cannot check database.
+    echo Open Laragon Terminal and run:
+    echo mysql -u root qbcoredb ^< "%~dp0check_database.sql"
+    echo.
+    pause
+    exit /b 1
+)
+
+echo.
+echo Check completed.
+pause
+
+================ 02_patch_database.cmd ================
+@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+
+title GCR HUD - Patch Metadata
+
+echo ==============================================
+echo   Grand Country Roleplay - HUD DB Patch
+echo ==============================================
+echo.
+echo This patch does NOT add or delete QBCore columns.
+echo It only adds missing HUD keys inside players.metadata.
+echo Existing metadata values are preserved.
+echo.
+
+set "MYSQL=mysql"
+if exist "C:\laragon\bin\mysql" (
+    for /f "delims=" %%D in ('dir /b /ad /o-n "C:\laragon\bin\mysql\mysql-*" 2^>nul') do (
+        if exist "C:\laragon\bin\mysql\%%D\bin\mysql.exe" (
+            set "MYSQL=C:\laragon\bin\mysql\%%D\bin\mysql.exe"
+            goto :mysql_found
+        )
+    )
+)
+
+:mysql_found
+set "DB=qbcoredb"
+set "USER=root"
+set /p DBINPUT=Database name [qbcoredb]: 
+if not "%DBINPUT%"=="" set "DB=%DBINPUT%"
+set /p PASS=MySQL password [ENTER if empty]: 
+
+echo.
+echo Applying metadata patch to %DB%...
+echo.
+
+if "%PASS%"=="" (
+    "%MYSQL%" -u "%USER%" "%DB%" < "%~dp0database_patch.sql"
+) else (
+    "%MYSQL%" -u "%USER%" -p"%PASS%" "%DB%" < "%~dp0database_patch.sql"
+)
+
+if errorlevel 1 (
+    echo.
+    echo ERROR: Patch failed.
+    echo Open Laragon Terminal and run:
+    echo mysql -u root qbcoredb ^< "%~dp0database_patch.sql"
+    echo.
+    pause
+    exit /b 1
+)
+
+echo.
+echo Database metadata patch completed successfully.
+pause

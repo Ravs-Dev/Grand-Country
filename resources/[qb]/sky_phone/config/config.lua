@@ -252,7 +252,7 @@ Config.CellTowers = {
 
 Config.Sim = {
     -- With SIM cards disabled, company calls and service requests use the automatic phone number too.
-    Enabled = true, -- false: devices receive a persistent random number automatically; forced false for metadata-free inventories
+    Enabled = false, -- false: devices receive a persistent random number automatically; forced false for metadata-free inventories
     RegisteredItem = "sky_phone_sim_registered",
     AnonymousItem = "sky_phone_sim_anonymous",
     NumberLength = 10, -- total number of digits, including NumberPrefix
@@ -504,7 +504,7 @@ Config.DarkChat = {
 }
 
 Config.Mail = {
-    Domain = "ifruit.com",
+    Domain = "grand-country.com",
     LocalPartMinLength = 3,
     LocalPartMaxLength = 32,
     PasswordMinLength = 6,

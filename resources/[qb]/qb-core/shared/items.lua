@@ -338,7 +338,8 @@ QBCore.Shared.Items = {
     radioscanner                 = { name = 'radioscanner', label = 'Radio Scanner', weight = 1000, type = 'item', image = 'radioscanner.png', unique = false, useable = false, shouldClose = true, description = 'With this you can get some police alerts. Not 100% effective however' },
     pinger                       = { name = 'pinger', label = 'Pinger', weight = 1000, type = 'item', image = 'pinger.png', unique = false, useable = false, shouldClose = true, description = 'With a pinger and your phone you can send out your location' },
     cryptostick                  = { name = 'cryptostick', label = 'Crypto Stick', weight = 200, type = 'item', image = 'cryptostick.png', unique = true, useable = true, shouldClose = true, description = 'Why would someone ever buy money that doesn\'t exist.. How many would it contain..?' },
-    sim                          = { name = 'sim', label = 'Sim Card', weight = 0, type = 'item', image = 'sky_phone_sim_registered.png', unique = false, useable = true, shouldClose = true, description = 'A sim card to put in your phone' },   
+    sky_phone_sim_registered     = { name = 'sky_phone_sim_registered', label = 'Sim Register', weight = 1000, type = 'item', image = 'sky_phone_sim_registered.png', unique = true, useable = true, shouldClose = true, description = 'A sim card to put in your phone' },   
+    sky_phone_sim_anonymous      = { name = 'sky_phone_sim_anonymous', label = 'Sim Card', weight = 1000, type = 'item', image = 'sky_phone_sim_anonymous.png', unique = true, useable = true, shouldClose = true, description = 'A sim card to put in your phone' },
 
     -- Theft and Jewelry
     rolex                        = { name = 'rolex', label = 'Golden Watch', weight = 1500, type = 'item', image = 'rolex.png', unique = false, useable = false, shouldClose = true, description = 'A golden watch seems like the jackpot to me!' },

@@ -1,0 +1,34 @@
+{
+  "join_notify_description": " %.2f دخلت الموجة",
+  "invalid_notify_description": " %.2f الموجة غير متاحة",
+  "already_notify_description": " %.2f انت بالموجة",
+  "restricted_notify_description": " %.2f  لا يمكن الاتصال بالموجة",
+  "volume_notify_description": " %d%% مستوى الصوت ",
+  "unsuccess_name": "خطأ في تغيير الاسم",
+  "jammer_notify_description": " %.2f خطأ في دخول الموجة",
+  "toggle_defean": "كتم الصوت",
+  "toggle_undeafen": "الغاء كتم الصوت",
+  "failed_mute": "خطأ في كتم المتصل",
+
+  "ui": {
+    "header": "في موجة",
+    "frequency": "الموجة",
+    "disconnect": "قطع الاتصال",
+    "notconnected": "غير متصل",
+    "settings": "إعدادات",
+    "channels": "القنوات",
+    "radio": "موجة",
+    "members": "المتصلين",
+    "favorites": "المفضلة",
+    "recommended": "مُستَحسَن",
+    "clear": "حذف",
+    "hide_overlay": "إخفاء التراكب",
+    "show_overlay": "عرض تراكب",
+    "save": "حفظ",
+    "radio_settings": "إعدادات الراديو",
+    "move_radio": "تحريك الراديو",
+    "allow_move": "السماح بالتحرك",
+    "overlay_settings": "تغير الاسم",
+    "enableClicks": "صوت الراديو"
+  }
+}
