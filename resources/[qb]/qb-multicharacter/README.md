@@ -1,51 +1,32 @@
-# qb-multicharacter
-Multi Character Feature for QB-Core Framework :people_holding_hands:
-
-Added support for setting default number of characters per player per Rockstar license
-
-# License
-
-    QBCore Framework
-    Copyright (C) 2021 Joshua Eger
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>
-
-
-## Dependencies
-- [qb-core](https://github.com/qbcore-framework/qb-core)
-- [qb-spawn](https://github.com/qbcore-framework/qb-spawn) - Spawn selector
-- [qb-apartments](https://github.com/qbcore-framework/qb-apartments) - For giving the player a apartment after creating a character.
-- [qb-clothing](https://github.com/qbcore-framework/qb-clothing) - For the character creation and saving outfits.
-- [qb-weathersync](https://github.com/qbcore-framework/qb-weathersync) - For adjusting the weather while player is creating a character.
-
-## Screenshots
-![Character Selection](https://cdn.discordapp.com/attachments/934470871333105674/1014215694394589294/unknown.png)
-![Character Registration](https://cdn.discordapp.com/attachments/934470871333105674/1014215687700488304/unknown.png)
-
-## Features
-- Ability to create up to 5 characters and delete any character.
-- Ability to see character information during selection.
+# GCR Cinematic QB MultiCharacter
 
 ## Installation
-### Manual
-- Download the script and put it in the `[qb]` directory.
-- Add the following code to your server.cfg/resouces.cfg
-```
-ensure qb-core
-ensure qb-multicharacter
-ensure qb-spawn
-ensure qb-apartments
-ensure qb-clothing
-ensure qb-weathersync
-```
+1. Backup your existing `[qb]/qb-multicharacter` folder. Stop the server.
+2. Install this folder as `resources/[qb]/qb-multicharacter` (rename if required).
+3. Ensure `oxmysql`, `qb-core`, `qb-multicharacter`, `qb-spawn`, and optionally `qb-apartments`, `qb-clothing`, `qb-weathersync`, `qb-inventory` in your server.cfg in that order. Avoid running a second multicharacter resource.
+4. Restart the server; no new tables are necessary if standard QBCore `players` and `playerskins` tables exist.
+
+## Settings
+- `config.lua` `Config.Scene.Ped`, `Camera`, `LookAt`: outdoor location/camera. They are **game world** positions, not an HTML wallpaper.
+- `Config.Scene.Crate`, `CrateModel`, `SitAnimDict`, `SitAnimName`: sitting prop and loop.
+- Camera has subtle movement; character does a seated animation if the clip exists, otherwise fallback scenario.
+- `Config.DefaultNumberOfCharacters`: maximum slots; `PlayersNumberOfCharacters` override by license.
+- `Config.SkipSelection`: use saved position, else qb-spawn or apartments.
+- Accent is orange `--orange` in `html/style.css`; English LTR layout.
+
+## Notes
+- This is an original custom implementation and not guaranteed drop-in with modified core/spawn/clothing forks. If you use `illenium-appearance`, replace the `qb-clothing` preview event in `client.lua` and adjust its skin query.
+- Preview uses playerskins; an absent skin shows default GTA Online male preview.
+- The sample scene uses a city grocery lot. The exact fence/crate environment of the screenshot is not guaranteed. Set desired coordinates and tweak camera facing to match your server map.
+- Forms currently accept ASCII Latin name characters and an ISO birthdate YYYY-MM-DD.
+- For a new character, apartment flow requires a compatible qb-apartments spawn UI. Without it, qb-spawn is used.
+- If spawn flow does not initialize because your version of qb-spawn expects a different signature, adapt the `finish` event in client.lua.
+- Do not run `qb-multicharacter` alongside another multicharacter script.
+
+## Preview troubleshooting (important)
+- `client.lua` now streams scene/collision before the preview camera appears; this fixes common gray/empty-world renders.
+- Saved appearance is loaded from the newest `playerskins` record (active record preferred). Standard `qb-clothing` and compatible `illenium-appearance` supported. If using `fivem-appearance` or customized clothing, provide its export/event so we can wire it in.
+- Your clothing resource must **save** current skin to `playerskins` when clothes/face/outfits change. If no skin is saved, neither this nor any other preview can reconstruct the IC appearance from scratch.
+- Example SQL diagnostic: `SELECT citizenid, model, active, LEFT(skin, 120) FROM playerskins WHERE citizenid='YOUR_CITIZENID' ORDER BY id DESC;`
+- Check F8 log for `[GCR Multi]` messages. Verify camera coordinates are not inside custom map geometry.
+- `gcr-hud:client:setMultichar` only works when the GCR HUD resource implements that event.

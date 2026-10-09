@@ -1,275 +1,310 @@
-local cam = nil
-local charPed = nil
-local loadScreenCheckState = false
-local QBCore = exports['qb-core']:GetCoreObject({ 'Functions' })
-local cached_player_skins = {}
-
-local randommodels = { -- models possible to load when choosing empty slot
-    'mp_m_freemode_01',
-    'mp_f_freemode_01',
-}
-
--- Main Thread
-
-CreateThread(function()
-    while true do
-        Wait(0)
-        if NetworkIsSessionStarted() then
-            TriggerEvent('qb-multicharacter:client:chooseChar')
-            return
-        end
+local QBCore = exports['qb-core']:GetCoreObject()
+local uiOpen, busy = false, false
+local cam, previewPed, crate, currentCitizen, animToken
+local modelCache = {}
+local sceneLoaded = false
+local function streamScene()
+    local scene = Config.Scene
+    SetFocusPosAndVel(scene.Ped.x, scene.Ped.y, scene.Ped.z, 0.0, 0.0, 0.0)
+    RequestCollisionAtCoord(scene.Ped.x, scene.Ped.y, scene.Ped.z)
+    NewLoadSceneStartSphere(scene.Ped.x, scene.Ped.y, scene.Ped.z, 80.0, 0)
+    local deadline = GetGameTimer() + 10000
+    while GetGameTimer() < deadline and not IsNewLoadSceneLoaded() do
+        RequestCollisionAtCoord(scene.Ped.x, scene.Ped.y, scene.Ped.z)
+        Wait(50)
     end
-end)
-
--- Functions
-
-local function loadModel(model)
-    RequestModel(model)
-    while not HasModelLoaded(model) do
-        Wait(0)
-    end
+    NewLoadSceneStop()
+    sceneLoaded = true
 end
-
-local function initializePedModel(model, data)
-    CreateThread(function()
-        if not model then
-            model = joaat(randommodels[math.random(#randommodels)])
-        end
-        loadModel(model)
-        charPed = CreatePed(2, model, Config.PedCoords.x, Config.PedCoords.y, Config.PedCoords.z - 0.98, Config.PedCoords.w, false, true)
-        SetPedComponentVariation(charPed, 0, 0, 0, 2)
-        FreezeEntityPosition(charPed, false)
-        SetEntityInvincible(charPed, true)
-        PlaceObjectOnGroundProperly(charPed)
-        SetBlockingOfNonTemporaryEvents(charPed, true)
-        if data then
-            TriggerEvent('qb-clothing:client:loadPlayerClothing', data, charPed)
-        end
-    end)
+local function decodeSkin(data)
+    if type(data) == 'table' then return data end
+    if type(data) ~= 'string' or data == '' then return nil end
+    local ok, result = pcall(json.decode, data)
+    return ok and type(result) == 'table' and result or nil
 end
-
-local function skyCam(bool)
-    TriggerEvent('qb-weathersync:client:DisableSync')
-    if bool then
-        DoScreenFadeIn(1000)
-        SetTimecycleModifier('hud_def_blur')
-        SetTimecycleModifierStrength(1.0)
-        FreezeEntityPosition(PlayerPedId(), false)
-        cam = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', Config.CamCoords.x, Config.CamCoords.y, Config.CamCoords.z, 0.0, 0.0, Config.CamCoords.w, 60.00, false, 0)
-        SetCamActive(cam, true)
-        RenderScriptCams(true, false, 1, true, true)
+local function requestModel(model)
+    local hash = type(model) == 'number' and model or joaat(model)
+    if not IsModelInCdimage(hash) then return nil end
+    RequestModel(hash)
+    local untilTime = GetGameTimer() + 8000
+    while not HasModelLoaded(hash) and GetGameTimer() < untilTime do Wait(20) end
+    if not HasModelLoaded(hash) then return nil end
+    return hash
+end
+local function clearPreview()
+    animToken = (animToken or 0) + 1
+    if previewPed and DoesEntityExist(previewPed) then DeleteEntity(previewPed) end
+    if crate and DoesEntityExist(crate) then DeleteEntity(crate) end
+    previewPed, crate = nil, nil
+end
+local function loadIdle(ped)
+    local token = animToken
+    local dict = Config.Scene.SitAnimDict
+    RequestAnimDict(dict)
+    local deadline = GetGameTimer() + 3500
+    while not HasAnimDictLoaded(dict) and GetGameTimer() < deadline do Wait(40) end
+    if token ~= animToken or not DoesEntityExist(ped) then return end
+    if HasAnimDictLoaded(dict) then
+        TaskPlayAnim(ped, dict, Config.Scene.SitAnimName, 5.0, 1.0, -1, Config.Scene.AnimMovement or 1, 0.0, false, false, false)
     else
-        SetTimecycleModifier('default')
-        SetCamActive(cam, false)
-        DestroyCam(cam, true)
-        RenderScriptCams(false, false, 1, true, true)
-        FreezeEntityPosition(PlayerPedId(), false)
+        -- Fallback if a modified game build lacks the selected animation.
+        TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_SEAT_WALL', 0, true)
     end
 end
-
-local function openCharMenu(bool)
-    QBCore.Functions.TriggerCallback('qb-multicharacter:server:GetNumberOfCharacters', function(result, countries)
-        local translations = {}
-        for k in pairs(Lang.fallback and Lang.fallback.phrases or Lang.phrases) do
-            if k:sub(0, ('ui.'):len()) then
-                translations[k:sub(('ui.'):len() + 1)] = Lang:t(k)
-            end
+local function makePreview(model, skin)
+    clearPreview()
+    local hash = requestModel(model) or requestModel('mp_m_freemode_01')
+    if not hash or not uiOpen then return end
+    local p = Config.Scene.Ped
+    local z = p.z + (Config.Scene.PedHeightOffset or 0)
+    previewPed = CreatePed(4, hash, p.x, p.y, z, p.w, false, true)
+    SetEntityAsMissionEntity(previewPed, true, true)
+    SetEntityInvincible(previewPed, true)
+    SetBlockingOfNonTemporaryEvents(previewPed, true)
+    SetPedCanRagdoll(previewPed, false)
+    SetEntityVisible(previewPed, true, false)
+    SetEntityAlpha(previewPed, 255, false)
+    SetEntityCollision(previewPed, true, true)
+    SetPedDefaultComponentVariation(previewPed)
+    FreezeEntityPosition(previewPed, true)
+    if Config.Scene.Crate then
+        local cHash = requestModel(Config.Scene.CrateModel)
+        if cHash then
+            local off = Config.Scene.CrateOffset
+            crate = CreateObjectNoOffset(cHash, p.x + off.x, p.y + off.y, p.z + off.z, false, false, false)
+            SetEntityHeading(crate, p.w)
+            FreezeEntityPosition(crate, true)
+            SetModelAsNoLongerNeeded(cHash)
         end
-        SetNuiFocus(bool, bool)
-        SendNUIMessage({
-            action = 'ui',
-            customNationality = Config.customNationality,
-            toggle = bool,
-            nChar = result,
-            enableDeleteButton = Config.EnableDeleteButton,
-            translations = translations,
-            countries = countries,
-        })
-        skyCam(bool)
-        if not loadScreenCheckState then
-            ShutdownLoadingScreenNui()
-            loadScreenCheckState = true
+    end
+    SetModelAsNoLongerNeeded(hash)
+    -- Standard qb-clothing supports an explicit ped argument and restores saved face/clothes.
+    -- Other clothing systems need their own preview adapter; do not call player-only setters.
+    if skin then
+        if Config.UseQbClothing and GetResourceState('qb-clothing') == 'started' then
+            TriggerEvent('qb-clothing:client:loadPlayerClothing', skin, previewPed)
+        elseif GetResourceState('illenium-appearance') == 'started' then
+            local ok = pcall(function()
+                exports['illenium-appearance']:setPedAppearance(previewPed, skin)
+            end)
+            if not ok then print('[GCR Multi] illenium-appearance preview failed; check appearance data format.') end
+        else
+            print('[GCR Multi] Saved skin found, but supported clothing resource not running: qb-clothing / illenium-appearance.')
+        end
+    else
+        print('[GCR Multi] No active skin saved. Showing default ped preview.')
+    end
+    animToken = (animToken or 0) + 1
+    local ped = previewPed
+    CreateThread(function() loadIdle(ped) end)
+end
+local function leaveCamera()
+    if cam then RenderScriptCams(false, true, 350, true, true); DestroyCam(cam, false); cam = nil end
+    ClearTimecycleModifier()
+    ClearFocus()
+    sceneLoaded = false
+    DisplayRadar(true)
+    TriggerEvent('qb-weathersync:client:EnableSync')
+end
+local function enterCamera()
+    local scene = Config.Scene
+    if not sceneLoaded then streamScene() end
+    TriggerEvent('qb-weathersync:client:DisableSync')
+    NetworkOverrideClockTime(scene.Hour, scene.Minute, 0)
+    SetWeatherTypeNowPersist(scene.Weather)
+    DisplayRadar(false)
+    if cam then DestroyCam(cam, false) end
+    cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+    SetCamCoord(cam, scene.Camera.x, scene.Camera.y, scene.Camera.z)
+    PointCamAtCoord(cam, scene.LookAt.x, scene.LookAt.y, scene.LookAt.z)
+    SetCamFov(cam, scene.Fov)
+    SetCamActive(cam, true)
+    RenderScriptCams(true, true, 900, true, true)
+    if scene.CameraSway then
+        CreateThread(function()
+            local localCam = cam
+            while uiOpen and cam == localCam do
+                local t = GetGameTimer() / 1000
+                SetCamCoord(localCam, scene.Camera.x + math.sin(t * 0.20) * 0.035,
+                    scene.Camera.y + math.cos(t * 0.21) * 0.035, scene.Camera.z)
+                PointCamAtCoord(localCam, scene.LookAt.x, scene.LookAt.y, scene.LookAt.z)
+                Wait(30)
+            end
+        end)
+    end
+end
+local function closeMenu()
+    uiOpen = false
+    SetNuiFocus(false, false)
+    SendNUIMessage({action = 'hide'})
+    clearPreview()
+    leaveCamera()
+    local player = PlayerPedId()
+    FreezeEntityPosition(player, false)
+    SetEntityVisible(player, true, false)
+    SetEntityCollision(player, true, true)
+end
+local function refresh()
+    QBCore.Functions.TriggerCallback('gcr-multicharacter:server:getCharacters', function(chars, max, canDelete)
+        if not uiOpen then return end
+        SendNUIMessage({action = 'characters', characters = chars or {}, maxSlots = max or 5, allowDelete = canDelete})
+        if chars and chars[1] then
+            currentCitizen = chars[1].citizenid
+            TriggerEvent('gcr-multicharacter:client:preview', currentCitizen)
+        else
+            currentCitizen = nil
+            makePreview('mp_m_freemode_01')
         end
     end)
 end
-
--- Events
-
-RegisterNetEvent('qb-multicharacter:client:closeNUIdefault', function() -- This event is only for no starting apartments
-    DeleteEntity(charPed)
-    SetNuiFocus(false, false)
-    DoScreenFadeOut(500)
-    Wait(2000)
-    SetEntityCoords(PlayerPedId(), Config.DefaultSpawn.x, Config.DefaultSpawn.y, Config.DefaultSpawn.z)
-    TriggerServerEvent('QBCore:Server:OnPlayerLoaded')
-    TriggerServerEvent('qb-houses:server:SetInsideMeta', 0, false)
-    TriggerServerEvent('qb-apartments:server:SetInsideMeta', 0, 0, false)
-    Wait(500)
-    openCharMenu()
-    SetEntityVisible(PlayerPedId(), true)
-    Wait(500)
-    DoScreenFadeIn(250)
-    TriggerEvent('qb-weathersync:client:EnableSync')
-    TriggerEvent('qb-clothes:client:CreateFirstCharacter')
-end)
-
-RegisterNetEvent('qb-multicharacter:client:closeNUI', function()
-    DeleteEntity(charPed)
-    SetNuiFocus(false, false)
-end)
-
-RegisterNetEvent('qb-multicharacter:client:chooseChar', function()
-    SetNuiFocus(false, false)
-    DoScreenFadeOut(10)
-    Wait(1000)
-    local interior = GetInteriorAtCoords(Config.Interior.x, Config.Interior.y, Config.Interior.z - 18.9)
-    LoadInterior(interior)
-    while not IsInteriorReady(interior) do
-        Wait(1000)
+RegisterNetEvent('gcr-multicharacter:client:characters', function(chars, max, canDelete)
+    if not uiOpen then return end
+    SendNUIMessage({action = 'characters', characters = chars, maxSlots = max, allowDelete = canDelete})
+    if chars and chars[1] then
+        currentCitizen = chars[1].citizenid
+        TriggerEvent('gcr-multicharacter:client:preview', currentCitizen)
+    else
+        currentCitizen = nil
+        makePreview('mp_m_freemode_01')
     end
-    FreezeEntityPosition(PlayerPedId(), true)
-    SetEntityCoords(PlayerPedId(), Config.HiddenCoords.x, Config.HiddenCoords.y, Config.HiddenCoords.z)
-    Wait(1500)
+end)
+RegisterNetEvent('gcr-multicharacter:client:preview', function(citizenid)
+    if not uiOpen or not citizenid then return end
+    currentCitizen = citizenid
+    local requested = citizenid
+    if modelCache[citizenid] then
+        local skin = modelCache[citizenid]
+        makePreview(skin.model, skin.data)
+        return
+    end
+    QBCore.Functions.TriggerCallback('gcr-multicharacter:server:getSkin', function(model, skinJson)
+        if not uiOpen or currentCitizen ~= requested then return end
+        local skin
+        if type(skinJson) == 'string' then
+            local ok, decoded = pcall(json.decode, skinJson)
+            if ok then skin = decoded end
+        elseif type(skinJson) == 'table' then skin = skinJson end
+        model = tonumber(model) or model or 'mp_m_freemode_01'
+        if not skin then print(('[GCR Multi] Skin missing for citizenid %s; check playerskins.active and clothing save events.'):format(requested)) end
+        modelCache[citizenid] = {model = model, data = skin}
+        makePreview(model, skin)
+    end, citizenid)
+end)
+RegisterNetEvent('qb-multicharacter:client:chooseChar', function()
+    if uiOpen then closeMenu() end
+    busy = false
+    modelCache = {}
+    DoScreenFadeOut(Config.FadeTime)
+    Wait(Config.FadeTime + 100)
+    local player = PlayerPedId()
+    SetEntityCoords(player, Config.Scene.Ped.x, Config.Scene.Ped.y, Config.Scene.Ped.z + 1.5, false, false, false, false)
+    FreezeEntityPosition(player, true)
+    SetEntityVisible(player, false, false)
+    SetEntityCollision(player, false, false)
+    uiOpen = true
+    TriggerEvent('gcr-hud:client:setMultichar', true)
+    enterCamera()
+    makePreview('mp_m_freemode_01')
     ShutdownLoadingScreen()
     ShutdownLoadingScreenNui()
-    openCharMenu(true)
+    SetNuiFocus(true, true)
+    SendNUIMessage({action = 'show', photo = Config.EnablePhotoMode})
+    refresh()
+    DoScreenFadeIn(Config.FadeTime)
 end)
-
-RegisterNetEvent('qb-multicharacter:client:spawnLastLocation', function(coords, cData)
-    QBCore.Functions.TriggerCallback('apartments:GetOwnedApartment', function(result)
-        if result then
-            TriggerEvent('apartments:client:SetHomeBlip', result.type)
-            local ped = PlayerPedId()
-            SetEntityCoords(ped, coords.x, coords.y, coords.z)
-            SetEntityHeading(ped, coords.w)
-            FreezeEntityPosition(ped, false)
-            SetEntityVisible(ped, true)
-            local PlayerData = QBCore.Functions.GetPlayerData()
-            local insideMeta = PlayerData.metadata['inside']
-            DoScreenFadeOut(500)
-
-            if insideMeta.house then
-                TriggerEvent('qb-houses:client:LastLocationHouse', insideMeta.house)
-            elseif insideMeta.apartment.apartmentType and insideMeta.apartment.apartmentId then
-                TriggerEvent('qb-apartments:client:LastLocationHouse', insideMeta.apartment.apartmentType, insideMeta.apartment.apartmentId)
-            else
-                SetEntityCoords(ped, coords.x, coords.y, coords.z)
-                SetEntityHeading(ped, coords.w)
-                FreezeEntityPosition(ped, false)
-                SetEntityVisible(ped, true)
+RegisterNUICallback('preview', function(data, cb)
+    if uiOpen and type(data.citizenid) == 'string' then
+        TriggerEvent('gcr-multicharacter:client:preview', data.citizenid)
+    end
+    cb({ok = true})
+end)
+RegisterNUICallback('select', function(data, cb)
+    if uiOpen and not busy and type(data.citizenid) == 'string' then
+        busy = true
+        DoScreenFadeOut(350)
+        Wait(380)
+        closeMenu()
+        TriggerServerEvent('gcr-multicharacter:server:select', data.citizenid)
+    end
+    cb({ok = true})
+end)
+RegisterNUICallback('create', function(data, cb)
+    if uiOpen and not busy then
+        busy = true
+        DoScreenFadeOut(350)
+        Wait(380)
+        closeMenu()
+        TriggerServerEvent('gcr-multicharacter:server:create', data)
+    end
+    cb({ok = true})
+end)
+RegisterNUICallback('delete', function(data, cb)
+    if uiOpen and not busy and type(data.citizenid) == 'string' then
+        TriggerServerEvent('gcr-multicharacter:server:delete', data.citizenid)
+    end
+    cb({ok = true})
+end)
+RegisterNUICallback('disconnect', function(_, cb)
+    TriggerServerEvent('gcr-multicharacter:server:disconnect')
+    cb({ok = true})
+end)
+RegisterNUICallback('photo', function(data, cb)
+    if uiOpen and Config.EnablePhotoMode then
+        SetNuiFocus(not data.enabled, not data.enabled)
+        SendNUIMessage({action = 'photo', enabled = data.enabled})
+    end
+    cb({ok = true})
+end)
+RegisterNetEvent('gcr-multicharacter:client:finish', function(mode, data, isNew)
+    closeMenu()
+    local ped = PlayerPedId()
+    SetEntityCoords(ped, Config.DefaultSpawn.x, Config.DefaultSpawn.y, Config.DefaultSpawn.z)
+    SetEntityHeading(ped, Config.DefaultSpawn.w)
+    FreezeEntityPosition(ped, false)
+    if mode == 'apartment' then
+        TriggerEvent('apartments:client:setupSpawnUI', data)
+    elseif mode == 'spawn' then
+        TriggerEvent('qb-spawn:client:setupSpawns', data, isNew, nil)
+        TriggerEvent('qb-spawn:client:openUI', true)
+    elseif mode == 'last' then
+        local pos = data.position
+        if type(pos) == 'string' then local ok, val = pcall(json.decode, pos); if ok then pos = val end end
+        if type(pos) == 'table' and pos.x and pos.y and pos.z then
+            SetEntityCoords(ped, pos.x, pos.y, pos.z)
+            SetEntityHeading(ped, pos.w or 0.0)
+        end
+        TriggerServerEvent('QBCore:Server:OnPlayerLoaded')
+        TriggerEvent('QBCore:Client:OnPlayerLoaded')
+    else
+        TriggerServerEvent('QBCore:Server:OnPlayerLoaded')
+        TriggerEvent('QBCore:Client:OnPlayerLoaded')
+        if isNew and GetResourceState('qb-clothing') == 'started' then
+            TriggerEvent('qb-clothes:client:CreateFirstCharacter')
+        end
+    end
+    DoScreenFadeIn(700)
+end)
+RegisterNetEvent('qb-multicharacter:client:closeNUI', closeMenu)
+RegisterNetEvent('qb-multicharacter:client:closeNUIdefault', function()
+    TriggerEvent('gcr-multicharacter:client:finish', 'default', {}, true)
+end)
+CreateThread(function()
+    while not NetworkIsSessionStarted() do Wait(300) end
+    Wait(1200)
+    if not LocalPlayer.state.isLoggedIn then
+        TriggerEvent('qb-multicharacter:client:chooseChar')
+    end
+end)
+-- Press BACKSPACE while in Photo Mode to return to menu.
+CreateThread(function()
+    while true do
+        if uiOpen then
+            Wait(0)
+            DisableControlAction(0, 200, true)
+            if IsDisabledControlJustPressed(0, 200) or IsControlJustPressed(0, 177) then
+                SetNuiFocus(true, true)
+                SendNUIMessage({action = 'photo', enabled = false})
             end
-
-            TriggerServerEvent('QBCore:Server:OnPlayerLoaded')
-            Wait(2000)
-            DoScreenFadeIn(250)
-        end
-    end, cData.citizenid)
-end)
-
--- NUI Callbacks
-
-RegisterNUICallback('closeUI', function(_, cb)
-    local cData = data.cData
-    DoScreenFadeOut(10)
-    TriggerServerEvent('qb-multicharacter:server:loadUserData', cData)
-    openCharMenu(false)
-    SetEntityAsMissionEntity(charPed, true, true)
-    DeleteEntity(charPed)
-    if Config.SkipSelection then
-        SetNuiFocus(false, false)
-        skyCam(false)
-    else
-        openCharMenu(false)
+        else Wait(500) end
     end
-    cb('ok')
-end)
-
-RegisterNUICallback('disconnectButton', function(_, cb)
-    SetEntityAsMissionEntity(charPed, true, true)
-    DeleteEntity(charPed)
-    TriggerServerEvent('qb-multicharacter:server:disconnect')
-    cb('ok')
-end)
-
-RegisterNUICallback('selectCharacter', function(data, cb)
-    local cData = data.cData
-    DoScreenFadeOut(10)
-    TriggerServerEvent('qb-multicharacter:server:loadUserData', cData)
-    openCharMenu(false)
-    SetEntityAsMissionEntity(charPed, true, true)
-    DeleteEntity(charPed)
-    cb('ok')
-end)
-
-RegisterNUICallback('cDataPed', function(nData, cb)
-    local cData = nData.cData
-    SetEntityAsMissionEntity(charPed, true, true)
-    DeleteEntity(charPed)
-    if cData ~= nil then
-        if not cached_player_skins[cData.citizenid] then
-            local temp_model = promise.new()
-            local temp_data = promise.new()
-
-            QBCore.Functions.TriggerCallback('qb-multicharacter:server:getSkin', function(model, data)
-                temp_model:resolve(model)
-                temp_data:resolve(data)
-            end, cData.citizenid)
-
-            local resolved_model = Citizen.Await(temp_model)
-            local resolved_data = Citizen.Await(temp_data)
-
-            cached_player_skins[cData.citizenid] = { model = resolved_model, data = resolved_data }
-        end
-
-        local model = cached_player_skins[cData.citizenid].model
-        local data = cached_player_skins[cData.citizenid].data
-
-        model = model ~= nil and tonumber(model) or false
-
-        if model ~= nil then
-            initializePedModel(model, json.decode(data))
-        else
-            initializePedModel()
-        end
-        cb('ok')
-    else
-        initializePedModel()
-        cb('ok')
-    end
-end)
-
-RegisterNUICallback('setupCharacters', function(_, cb)
-    QBCore.Functions.TriggerCallback('qb-multicharacter:server:setupCharacters', function(result)
-        cached_player_skins = {}
-        SendNUIMessage({
-            action = 'setupCharacters',
-            characters = result
-        })
-        cb('ok')
-    end)
-end)
-
-RegisterNUICallback('removeBlur', function(_, cb)
-    SetTimecycleModifier('default')
-    cb('ok')
-end)
-
-RegisterNUICallback('createNewCharacter', function(data, cb)
-    local cData = data
-    DoScreenFadeOut(150)
-    if cData.gender == Lang:t('ui.male') then
-        cData.gender = 0
-    elseif cData.gender == Lang:t('ui.female') then
-        cData.gender = 1
-    end
-    TriggerServerEvent('qb-multicharacter:server:createCharacter', cData)
-    Wait(500)
-    cb('ok')
-end)
-
-RegisterNUICallback('removeCharacter', function(data, cb)
-    TriggerServerEvent('qb-multicharacter:server:deleteCharacter', data.citizenid)
-    DeletePed(charPed)
-    TriggerEvent('qb-multicharacter:client:chooseChar')
-    cb('ok')
 end)

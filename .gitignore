@@ -1,5 +1,13 @@
-alpine/
-db/
+# Folder Cache & Database
 cache/
+zip/
+db/
+
+# File Arsip (Penting untuk mencegah error ukuran file > 100MB)
+*.zip
+*.rar
+*.7z
+
+# Backup & History
 server.cfg.bkp
 .replxx_history

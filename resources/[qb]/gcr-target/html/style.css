@@ -1,0 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap');
+:root { --orange:#ff941f; --orange2:#ffbe67; --panel:rgba(14,17,22,.92); --white:#f8fafc; }
+* { box-sizing:border-box; }
+html,body {margin:0;width:100%;height:100%;overflow:hidden;background:transparent!important;font-family:Rajdhani,Arial,sans-serif;user-select:none;}
+#target-wrapper {position:absolute;inset:0;pointer-events:none;}
+#target-eye {display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:44px;height:44px;place-items:center;border-radius:13px;border:1px solid rgba(255,255,255,.18);background:rgba(15,18,23,.78);box-shadow:0 7px 26px rgba(0,0,0,.35);font-size:19px;color:#fff;transition:color .15s,border-color .15s,box-shadow .15s;}
+#target-wrapper.active #target-eye {display:grid;animation:gcr-in .2s ease-out;}
+#target-wrapper.found #target-eye {color:var(--orange);border-color:rgba(255,148,31,.85);box-shadow:0 0 0 4px rgba(255,148,31,.11),0 5px 25px rgba(255,148,31,.22);}
+#target-wrapper.focused #target-eye {color:var(--orange2);border-color:var(--orange);}
+#target-label-wrapper {position:absolute;left:calc(50% + 40px);top:50%;transform:translateY(-50%);min-width:205px;max-width:340px;}
+#target-label {display:flex;flex-direction:column;gap:7px;}
+.gcr-target-option {pointer-events:auto;display:flex;align-items:center;gap:12px;min-height:42px;padding:10px 15px;border:1px solid rgba(255,148,31,.16);border-left:3px solid var(--orange);border-radius:7px;background:var(--panel);color:var(--white);font-size:16px;font-weight:600;line-height:1.1;letter-spacing:.15px;box-shadow:0 5px 18px rgba(0,0,0,.25);transition:transform .15s,background .15s,border-color .15s;animation:gcr-in .2s ease-out;}
+.gcr-target-option i {width:20px;text-align:center;color:var(--orange);font-size:15px;}
+#target-wrapper.focused .gcr-target-option {cursor:pointer;}
+#target-wrapper.focused .gcr-target-option:hover {background:rgba(96,60,25,.95);transform:translateX(5px);border-color:var(--orange);}
+@keyframes gcr-in {from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}

@@ -9,9 +9,9 @@
     "Music" : [
         {
             "label" : "Cigarettes after Sex",
-            "fileName" : "music.mp3",
+            "fileName" : "music-gcrp.mp3",
             "owner" : "Apocalypse",
-            "banner" : "https://pbs.twimg.com/media/FhnvbVOXoAAmYVu.jpg:large"
+            "src" : "https://cdn.discordapp.com/attachments/1552235655180976198/1555798647805837413/image.png?backend=b2&ex=6ac9bee6&is=6ac86d66&hm=96a9cb7a248d58384c3caa938c8814a85577157ce597c192dca61adedfa61107&"
         }
     ],
     "SocialMedias" : [

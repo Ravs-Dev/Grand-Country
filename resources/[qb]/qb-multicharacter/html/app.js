@@ -1,214 +1,83 @@
-let re = "(" + profList.join("|") + ")\\b";
-const regTest = new RegExp(re, "i");
-
-document.addEventListener("DOMContentLoaded", () => {
-    const viewmodel = new Vue({
-        el: "#app",
-        vuetify: new Vuetify({ theme: { dark: true } }),
-        data: {
-            characters: [],
-            chardata: {},
-            show: {
-                loading: false,
-                characters: false,
-                register: false,
-                delete: false,
-            },
-            registerData: {
-                date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().substr(0, 10),
-                firstname: undefined,
-                lastname: undefined,
-                nationality: undefined,
-                gender: undefined,
-            },
-            allowDelete: false,
-            dataPickerMenu: false,
-            characterAmount: 0,
-            loadingText: "",
-            selectedCharacter: -1,
-            dollar: Intl.NumberFormat("en-US"),
-            translations: {},
-            customNationality: false,
-            nationalities: [],
-        },
-        methods: {
-            click_character: function (idx, type) {
-                this.selectedCharacter = idx;
-
-                if (this.characters[idx] !== undefined) {
-                    axios.post("https://qb-multicharacter/cDataPed", {
-                        cData: this.characters[idx],
-                    });
-                } else {
-                    axios.post("https://qb-multicharacter/cDataPed", {});
-                    // For empty slots, immediately show the registration form
-                    if (type === "empty") {
-                        this.resetRegisterData();
-                        this.show.characters = false;
-                        this.show.register = true;
-                    }
-                }
-            },
-            prepareDelete: function () {
-                this.show.characters = false;
-                this.show.delete = true;
-            },
-            cancelDelete: function () {
-                this.show.delete = false;
-                this.show.characters = true;
-            },
-            cancelCreate: function () {
-                this.show.register = false;
-                this.show.characters = true;
-            },
-            delete_character: function () {
-                if (this.show.delete) {
-                    this.show.delete = false;
-                    axios.post("https://qb-multicharacter/removeCharacter", {
-                        citizenid: this.characters[this.selectedCharacter].citizenid,
-                    });
-                    setTimeout(() => {
-                        this.show.characters = true;
-                    }, 500);
-                }
-            },
-            play_character: function () {
-                if (this.selectedCharacter !== -1) {
-                    var data = this.characters[this.selectedCharacter];
-
-                    if (data !== undefined) {
-                        axios.post("https://qb-multicharacter/selectCharacter", {
-                            cData: data,
-                        });
-                        setTimeout(() => {
-                            this.show.characters = false;
-                        }, 500);
-                    } else {
-                        this.resetRegisterData();
-                        this.show.characters = false;
-                        this.show.register = true;
-                    }
-                }
-            },
-            resetRegisterData: function () {
-                this.show.characters = false;
-                this.show.register = true;
-                this.registerData = {
-                    date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().substr(0, 10),
-                    firstname: undefined,
-                    lastname: undefined,
-                    nationality: undefined,
-                    gender: undefined,
-                };
-            },
-            create_character: function () {
-                const registerData = this.registerData;
-                const validationResult = characterValidator.validateCharacter({
-                    firstname: registerData.firstname,
-                    lastname: registerData.lastname,
-                    nationality: registerData.nationality,
-                    gender: registerData.gender,
-                    date: registerData.date,
-                });
-
-                if (validationResult.isValid) {
-                    this.show.register = false;
-
-                    axios.post("https://qb-multicharacter/createNewCharacter", {
-                        firstname: registerData.firstname,
-                        lastname: registerData.lastname,
-                        nationality: registerData.nationality,
-                        birthdate: registerData.date,
-                        gender: registerData.gender,
-                        cid: this.selectedCharacter,
-                    });
-
-                    setTimeout(() => {
-                        this.show.characters = false;
-                    }, 500);
-                } else {
-                    Swal.fire({
-                        icon: "error",
-                        title: this.translate("ran_into_issue"),
-                        text: this.translate(validationResult.message, { field: this.translate(validationResult.field) }),
-                        timer: 5000,
-                        timerProgressBar: true,
-                        showConfirmButton: false,
-                    });
-                }
-            },
-            translate(key, params) {
-                if (params) {
-                    return translationManager.formatTranslation(key, params);
-                }
-                return translationManager.translate(key);
-            },
-        },
-        mounted() {
-            initializeValidator();
-            var loadingProgress = 0;
-            var loadingDots = 0;
-            window.addEventListener("message", (event) => {
-                var data = event.data;
-                switch (data.action) {
-                    case "ui":
-                        this.customNationality = event.data.customNationality;
-                        translationManager.setTranslations(event.data.translations);
-                        this.translations = event.data.translations;
-                        this.nationalities = event.data.countries;
-                        this.characterAmount = data.nChar;
-                        this.selectedCharacter = -1;
-                        this.show.register = false;
-                        this.show.delete = false;
-                        this.show.characters = false;
-                        this.allowDelete = event.data.enableDeleteButton;
-                        EnableDeleteButton = data.enableDeleteButton;
-
-                        if (data.toggle) {
-                            this.show.loading = true;
-                            this.loadingText = this.translate("retrieving_playerdata");
-                            var DotsInterval = setInterval(() => {
-                                loadingDots++;
-                                loadingProgress++;
-                                if (loadingProgress == 3) {
-                                    this.loadingText = this.translate("validating_playerdata");
-                                }
-                                if (loadingProgress == 4) {
-                                    this.loadingText = this.translate("retrieving_characters");
-                                }
-                                if (loadingProgress == 6) {
-                                    this.loadingText = this.translate("validating_characters");
-                                }
-                                if (loadingDots == 4) {
-                                    loadingDots = 0;
-                                }
-                            }, 500);
-
-                            setTimeout(() => {
-                                axios.post("https://qb-multicharacter/setupCharacters");
-                                setTimeout(() => {
-                                    clearInterval(DotsInterval);
-                                    loadingProgress = 0;
-                                    this.loadingText = this.translate("retrieving_playerdata");
-                                    this.show.loading = false;
-                                    this.show.characters = true;
-                                    axios.post("https://qb-multicharacter/removeBlur");
-                                }, 2000);
-                            }, 2000);
-                        }
-                        break;
-                    case "setupCharacters":
-                        var newChars = [];
-                        for (var i = 0; i < event.data.characters.length; i++) {
-                            newChars[event.data.characters[i].cid] = event.data.characters[i];
-                        }
-                        this.characters = newChars;
-                        break;
-                    case "setupCharInfo":
-                        this.chardata = event.data.chardata;
-                        break;
-                }
-            });
-        },
-    });
+'use strict';
+const $ = (s) => document.querySelector(s);
+const app = $('#app'), modal = $('#modal');
+let characters=[], maxSlots=5, selected=null, deleteAllowed=true, photoAllowed=true, photoMode=false, locked=false;
+const post = async (event, data={}) => {
+  try {const response = await fetch(`https://${GetParentResourceName()}/${event}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}); return await response.json();}
+  catch(err){ console.error(event,err); showToast('Could not contact game client'); return null; }
+};
+const safe = (s) => String(s ?? '');
+const money = (n) => new Intl.NumberFormat('en-US').format(Number(n)||0);
+const current = () => characters.find(c=>c.citizenid===selected) || null;
+function showToast(msg){const box=$('#toast');box.textContent=msg;box.classList.remove('hidden');setTimeout(()=>box.classList.add('hidden'),2800)}
+function setText(id,v){document.getElementById(id).textContent=safe(v)}
+function closeModal(){modal.classList.add('hidden')}
+function openModal(type){
+  $('#formArea').classList.toggle('hidden',type!=='create');
+  $('#deleteArea').classList.toggle('hidden',type!=='delete');
+  $('#creditsArea').classList.toggle('hidden',type!=='credits');
+  setText('modalEyebrow',type==='create'?'NEW LIFE':type==='delete'?'DANGER ZONE':'GCR');
+  setText('modalHeading',type==='create'?'CREATE YOUR STORY':type==='delete'?'DELETE CHARACTER':'CREDITS');
+  modal.classList.remove('hidden');
+}
+function selectChar(id){selected=id;const c=current();if(c)post('preview',{citizenid:id});render()}
+function render(){
+  const c=current(), i=c?.charinfo||{}, j=c?.job||{}, m=c?.money||{};
+  setText('firstName',c?i.firstname:'YOUR');setText('lastName',c?i.lastname:'STORY');
+  setText('cid',c?(c.cid||1):'—');setText('job',j.label||j.name||'CIVILIAN');
+  setText('nationality',i.nationality||'—');setText('birthdate',i.birthdate||'—');
+  setText('cash',money(m.cash));setText('bank',money(m.bank));
+  setText('slotInfo',`${characters.length} / ${maxSlots}`);
+  $('#play').disabled=!c;$('#delete').disabled=!c||!deleteAllowed;
+  $('#new').disabled=characters.length>=maxSlots;
+  $('#photo').style.display=photoAllowed?'':'none';
+  const slots=$('#slots');slots.replaceChildren();
+  for(let index=1;index<=maxSlots;index++){
+    const slotC=characters.find(x=>Number(x.cid)===index);
+    const b=document.createElement('button');b.type='button';
+    b.className=`slot ${slotC?.citizenid===selected?'selected':''} ${slotC?'':'empty'}`;
+    const number=document.createElement('span');number.className='number';number.textContent=`#${String(index).padStart(2,'0')}`;
+    const name=document.createElement('span');name.className='smallName';name.textContent=slotC?`${safe(slotC.charinfo?.firstname)} ${safe(slotC.charinfo?.lastname)}`:'＋ EMPTY SLOT';
+    b.append(number,name);
+    b.addEventListener('click',()=>slotC?selectChar(slotC.citizenid):openModal('create'));
+    slots.appendChild(b);
+  }
+}
+window.addEventListener('message',event=>{
+  const d=event.data||{};
+  if(d.action==='show'){
+    locked=false;photoAllowed=d.photo!==false;app.classList.remove('hidden');photoMode=false;
+    $('#photoHint').classList.add('hidden');closeModal();render();
+  }
+  if(d.action==='hide'){app.classList.add('hidden');closeModal();locked=false;}
+  if(d.action==='characters'){
+    characters=Array.isArray(d.characters)?d.characters:[];
+    maxSlots=Math.max(1,Number(d.maxSlots)||5);deleteAllowed=!!d.allowDelete;
+    if(!characters.some(c=>c.citizenid===selected))selected=characters[0]?.citizenid||null;
+    render();
+  }
+  if(d.action==='photo'){
+    photoMode=!!d.enabled;
+    $('.rightPanel').classList.toggle('hidden',photoMode);
+    $('.serverBrand').classList.toggle('hidden',photoMode);
+    $('#photoHint').classList.toggle('hidden',!photoMode);
+  }
+});
+$('#play').addEventListener('click',()=>{if(locked||!current())return;locked=true;post('select',{citizenid:selected})});
+$('#new').addEventListener('click',()=>{if(characters.length<maxSlots)openModal('create')});
+$('#delete').addEventListener('click',()=>{if(!current()||!deleteAllowed)return;setText('deleteName',`${current().charinfo?.firstname} ${current().charinfo?.lastname}`);openModal('delete')});
+$('#confirmDelete').addEventListener('click',()=>{if(!current())return;post('delete',{citizenid:selected});closeModal();showToast('Deleting character...')});
+$('#cancelDelete').addEventListener('click',closeModal);$('#x').addEventListener('click',closeModal);
+$('#exit').addEventListener('click',()=>post('disconnect'));
+$('#photo').addEventListener('click',()=>post('photo',{enabled:true}));
+window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(photoMode){post('photo',{enabled:false})}else closeModal()}});
+$('#createForm').addEventListener('submit',e=>{
+ e.preventDefault();if(locked)return;
+ const form=new FormData(e.currentTarget);
+ const values=Object.fromEntries(form.entries());
+ const error=$('#formError');error.textContent='';
+ const d=new Date(`${values.birthdate}T00:00:00`);
+ if(!Number.isFinite(d.getTime())||d.getTime()>Date.now()){error.textContent='Enter a valid past birth date';return;}
+ if(!/^[A-Za-z -]{2,32}$/.test(values.firstname)||!/^[A-Za-z -]{2,32}$/.test(values.lastname)){error.textContent='Names must use 2–32 letters';return;}
+ locked=true;post('create',{...values,gender:Number(values.gender)});
 });

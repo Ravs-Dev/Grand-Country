@@ -1,30 +1,60 @@
+-- FX Information
 fx_version 'cerulean'
-game 'gta5'
-lua54 'yes'
 use_experimental_fxv2_oal 'yes'
-author 'BerkieB'
-description 'Allows players to interact with various objects and entities in the world'
-version '5.5.0'
+lua54 'yes'
+game 'gta5'
 
-ui_page 'html/index.html'
+-- Resource Information
+name 'gc_target'
+author 'Overextended'
+version '1.17.1'
+repository 'https://github.com/overextended/gc_target'
+description ''
+
+-- Manifest
+-- ui_page 'web/index.html'
+ui_page 'ui_page/build/index.html'
+
+shared_scripts {
+	'@FB_Lib/init.lua',
+}
 
 client_scripts {
-	'@PolyZone/client.lua',
-	'@PolyZone/BoxZone.lua',
-	'@PolyZone/EntityZone.lua',
-	'@PolyZone/CircleZone.lua',
-	'@PolyZone/ComboZone.lua',
-	'config.lua',
-	'client.lua',
-	'registration.lua',
-	'peds.lua',
+	'client/main.lua',
+	'actions.lua',
+	'sh_main.lua',
+}
+
+server_scripts {
+	-- 'server/main.lua',
+'server.lua',
 }
 
 files {
-	'data/*.lua',
-	'html/*.html',
-	'html/*.css',
-	'html/*.js'
+	-- 'web/**',
+	'ui_page/build/*',
+	'ui_page/build/static/css/*.css',
+	'ui_page/build/static/js/*.js',
+	'ui_page/build/static/media/*',
+	'ui_page/build/images/*',
+	'locales/*.json',
+	'client/api.lua',
+	'client/utils.lua',
+	'client/state.lua',
+	'client/debug.lua',
+	-- 'client/defaults.lua',
+	'client/framework/nd.lua',
+	'client/framework/ox.lua',
+	'client/framework/esx.lua',
+	'client/framework/qbx.lua',
+	'client/framework/rt.lua',
+	'client/compat/qtarget.lua',
+	'client/compat/RespectTarget.lua',
+	'client/compat/RespectTarget.lua',
 }
 
-dependency 'PolyZone'
+provide 'qtarget'
+provide 'RespectTarget'
+provide 'RespectTarget'
+
+dependency 'FB_Lib'

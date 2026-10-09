@@ -10,7 +10,7 @@ Config.PlayerCountRefresh = 10000
 Config.HideMinimapInGameplay = true
 
 -- Optional vehicle HUD at the bottom center.
-Config.ShowVehicleHud = false
+Config.ShowVehicleHud = true
 
 -- Injury detector.
 Config.EnableBodyInjury = true

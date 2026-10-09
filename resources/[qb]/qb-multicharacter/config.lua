@@ -1,14 +1,28 @@
 Config = {}
-Config.Interior = vector3(-763.2816, 330.0418, 199.4865)              -- Interior to load where characters are previewed
-Config.DefaultSpawn = vector3(-1035.71, -2731.87, 12.86)              -- Default spawn coords if you have start apartments disabled
-Config.PedCoords = vector4(-763.2816, 330.0418, 199.4865, 177.7942)   -- Create preview ped at these coordinates
-Config.HiddenCoords = vector4(-779.0154, 326.1801, 196.0860, 91.0454) -- Hides your actual ped while you are in selection
-Config.CamCoords = vector4(-763.1219, 326.8112, 200, 357.0954)        -- Camera coordinates for character preview screen
-Config.EnableDeleteButton = true                                      -- Define if the player can delete the character or not
-Config.customNationality = false                                      -- Defines if Nationality input is custom of blocked to the list of Countries
-Config.SkipSelection = false                                          -- Skip the spawn selection and spawns the player at the last location
-
-Config.DefaultNumberOfCharacters = 1                                  -- Define maximum amount of default characters (maximum 5 characters defined by default)
-Config.PlayersNumberOfCharacters = {                                  -- Define maximum amount of player characters by rockstar license (you can find this license in your server's database in the player table)
-    { license = 'license:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', numberOfChars = 2 },
+Config.DefaultNumberOfCharacters = 1
+Config.PlayersNumberOfCharacters = {} -- { {license = 'license:...', numberOfChars = 4} }
+Config.EnableDeleteButton = true
+Config.SkipSelection = false
+Config.DefaultSpawn = vector4(-1035.71, -2731.87, 13.76, 330.0)
+-- Outdoor city set. Change the three coordinates together to use another location.
+Config.Scene = {
+    Ped = vector4(-46.40, -1758.80, 29.42, 225.0),
+    Camera = vector3(-43.90, -1762.40, 30.60),
+    LookAt = vector3(-46.40, -1758.80, 29.75),
+    Fov = 44.0,
+    -- True: place a wooden crate and apply seated idle animation to the ped.
+    Crate = true,
+    CrateModel = 'prop_box_wood05a',
+    CrateOffset = vector3(0.0, 0.0, -0.4),
+    PedHeightOffset = 0.25,
+    SitAnimDict = 'anim@amb@office@seating@male@var_a@base@',
+    SitAnimName = 'base',
+    AnimMovement = 1,
+    Weather = 'CLEAR',
+    Hour = 21,
+    Minute = 30,
+    CameraSway = true,
 }
+Config.UseQbClothing = true -- Uses qb-clothing for preview when present
+Config.EnablePhotoMode = true
+Config.FadeTime = 650
