@@ -1,0 +1,447 @@
+@import url("https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700&display=swap");
+
+:root {
+    /* =========================
+       GCR COLORS
+    ========================== */
+
+    --gcr-orange: #ff8a1f;
+    --gcr-orange-light: #ffad61;
+    --gcr-orange-dark: #d96500;
+
+    --gcr-white: #ffffff;
+    --gcr-text: #f5f5f5;
+    --gcr-text-muted: rgba(255, 255, 255, 0.65);
+
+    --gcr-bg: rgba(15, 15, 18, 0.94);
+    --gcr-bg-hover: rgba(28, 28, 32, 0.97);
+    --gcr-bg-active: rgba(255, 138, 31, 0.13);
+
+    --gcr-border: rgba(255, 255, 255, 0.07);
+    --gcr-border-orange: rgba(255, 138, 31, 0.42);
+
+    --gcr-shadow: rgba(0, 0, 0, 0.42);
+
+    --font-primary: "Exo 2", Arial, sans-serif;
+}
+
+/* =========================
+   BODY
+========================= */
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+
+    overflow: hidden;
+
+    background: transparent !important;
+
+    font-family: var(--font-primary);
+
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* =========================
+   TARGET EYE
+========================= */
+
+#target-eye {
+    position: absolute;
+
+    top: 50%;
+    left: 50%;
+
+    display: none;
+    align-items: center;
+    justify-content: center;
+
+    width: 38px;
+    height: 38px;
+
+    transform:
+        translate(-50%, -50%)
+        scale(0.92);
+
+    border-radius: 50%;
+
+    font-size: 14px;
+
+    color: var(--gcr-white);
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(27, 27, 31, 0.96),
+            rgba(11, 11, 14, 0.96)
+        );
+
+    border: 1px solid rgba(255, 255, 255, 0.11);
+
+    box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+    text-shadow: none;
+
+    transition:
+        color 0.18s ease,
+        background 0.18s ease,
+        border-color 0.18s ease,
+        box-shadow 0.18s ease,
+        transform 0.18s ease;
+
+    z-index: 1000;
+}
+
+/* titik kecil di bawah eye */
+
+#target-eye::after {
+    content: "";
+
+    position: absolute;
+
+    bottom: -7px;
+    left: 50%;
+
+    width: 4px;
+    height: 4px;
+
+    transform: translateX(-50%);
+
+    border-radius: 50%;
+
+    background: rgba(255, 255, 255, 0.45);
+
+    transition:
+        background 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+/* =========================
+   FOUND TARGET
+========================= */
+
+#target-eye.target-success {
+    color: var(--gcr-orange) !important;
+
+    border-color: rgba(255, 138, 31, 0.55);
+
+    transform:
+        translate(-50%, -50%)
+        scale(1);
+
+    box-shadow:
+        0 0 0 4px rgba(255, 138, 31, 0.05),
+        0 0 16px rgba(255, 138, 31, 0.22),
+        0 6px 20px rgba(0, 0, 0, 0.45);
+
+    animation: targetPulse 1.8s ease-in-out infinite;
+}
+
+#target-eye.target-success::after {
+    background: var(--gcr-orange);
+
+    box-shadow:
+        0 0 8px rgba(255, 138, 31, 0.8);
+}
+
+@keyframes targetPulse {
+    0%,
+    100% {
+        box-shadow:
+            0 0 0 3px rgba(255, 138, 31, 0.04),
+            0 0 12px rgba(255, 138, 31, 0.13),
+            0 6px 20px rgba(0, 0, 0, 0.45);
+    }
+
+    50% {
+        box-shadow:
+            0 0 0 5px rgba(255, 138, 31, 0.07),
+            0 0 20px rgba(255, 138, 31, 0.28),
+            0 6px 20px rgba(0, 0, 0, 0.45);
+    }
+}
+
+/* =========================
+   TARGET LABEL WRAPPER
+========================= */
+
+#target-label-wrapper {
+    position: absolute;
+
+    top: 50%;
+    left: calc(50% + 34px);
+
+    width: fit-content;
+    height: auto;
+
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+
+    transform: translateY(-50%);
+
+    pointer-events: auto;
+
+    z-index: 999;
+}
+
+/* =========================
+   TARGET LABEL
+========================= */
+
+#target-label {
+    display: flex;
+    flex-direction: column;
+
+    gap: 6px;
+
+    min-width: 180px;
+    max-width: 270px;
+
+    margin: 0;
+    padding: 0;
+
+    list-style: none;
+
+    font-family: var(--font-primary);
+    font-size: 12px;
+    font-weight: 500;
+
+    color: var(--gcr-text);
+
+    white-space: nowrap;
+
+    text-shadow: none;
+}
+
+/* =========================
+   TARGET OPTION
+========================= */
+
+[id^="target-option-"] {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+
+    min-height: 38px;
+
+    margin: 0;
+
+    padding:
+        6px
+        14px
+        6px
+        10px;
+
+    border-radius: 8px;
+
+    color: var(--gcr-text);
+
+    background:
+        linear-gradient(
+            100deg,
+            rgba(20, 20, 24, 0.96),
+            rgba(12, 12, 15, 0.94)
+        );
+
+    border: 1px solid var(--gcr-border);
+
+    box-shadow:
+        0 5px 16px rgba(0, 0, 0, 0.3);
+
+    cursor: pointer;
+
+    overflow: hidden;
+
+    transform: translateX(0);
+
+    transition:
+        transform 0.16s ease,
+        background 0.16s ease,
+        border-color 0.16s ease,
+        box-shadow 0.16s ease,
+        color 0.16s ease;
+}
+
+/* garis orange sebelah kiri */
+
+[id^="target-option-"]::before {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    top: 50%;
+
+    width: 2px;
+    height: 0%;
+
+    transform: translateY(-50%);
+
+    border-radius: 0 4px 4px 0;
+
+    background: var(--gcr-orange);
+
+    box-shadow:
+        0 0 8px rgba(255, 138, 31, 0.6);
+
+    transition: height 0.16s ease;
+}
+
+/* =========================
+   ICON
+========================= */
+
+[id^="target-icon-"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 28px;
+    height: 28px;
+
+    margin-right: 9px;
+
+    border-radius: 7px;
+
+    color: var(--gcr-orange);
+
+    background: rgba(255, 138, 31, 0.09);
+
+    border: 1px solid rgba(255, 138, 31, 0.13);
+
+    font-size: 11px;
+
+    transition:
+        background 0.16s ease,
+        color 0.16s ease,
+        transform 0.16s ease,
+        box-shadow 0.16s ease;
+}
+
+[id^="target-icon-"] i {
+    pointer-events: none;
+}
+
+/* =========================
+   HOVER
+========================= */
+
+[id^="target-option-"]:hover {
+    transform: translateX(6px);
+
+    color: #ffffff;
+
+    background:
+        linear-gradient(
+            100deg,
+            rgba(38, 27, 18, 0.98),
+            rgba(18, 18, 22, 0.97)
+        );
+
+    border-color:
+        rgba(255, 138, 31, 0.38);
+
+    box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.4),
+        0 0 12px rgba(255, 138, 31, 0.06);
+}
+
+[id^="target-option-"]:hover::before {
+    height: 55%;
+}
+
+[id^="target-option-"]:hover [id^="target-icon-"] {
+    color: #151515;
+
+    background: var(--gcr-orange);
+
+    border-color: var(--gcr-orange);
+
+    transform: scale(1.05);
+
+    box-shadow:
+        0 0 12px rgba(255, 138, 31, 0.25);
+}
+
+/* =========================
+   ACTIVE CLICK
+========================= */
+
+[id^="target-option-"]:active {
+    transform:
+        translateX(6px)
+        scale(0.97);
+
+    background:
+        rgba(255, 138, 31, 0.15);
+}
+
+/* =========================
+   OPTIONAL ANIMATION
+========================= */
+
+[id^="target-option-"] {
+    animation: targetOptionEnter 0.18s ease forwards;
+}
+
+@keyframes targetOptionEnter {
+    from {
+        opacity: 0;
+        transform: translateX(-7px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* =========================
+   SMALL SCREEN
+========================= */
+
+@media (max-width: 1366px) {
+    #target-eye {
+        width: 34px;
+        height: 34px;
+
+        font-size: 12px;
+    }
+
+    #target-label-wrapper {
+        left: calc(50% + 31px);
+    }
+
+    #target-label {
+        min-width: 165px;
+
+        font-size: 11px;
+    }
+
+    [id^="target-option-"] {
+        min-height: 34px;
+
+        padding:
+            5px
+            12px
+            5px
+            7px;
+    }
+
+    [id^="target-icon-"] {
+        width: 25px;
+        height: 25px;
+
+        margin-right: 8px;
+
+        font-size: 10px;
+    }
+}

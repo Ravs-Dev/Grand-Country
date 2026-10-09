@@ -143,12 +143,14 @@ RegisterNetEvent('qb-weapons:server:UpdateWeaponAmmo', function(CurrentWeaponDat
     local Player = exports['qb-core']:GetPlayer(src)
     if not Player then return end
     amount = tonumber(amount)
-    if CurrentWeaponData then
-        if Player.PlayerData.items[CurrentWeaponData.slot] then
-            Player.PlayerData.items[CurrentWeaponData.slot].info.ammo = amount
-        end
-        Player.SetInventory(Player.PlayerData.items, true)
-    end
+    if type(CurrentWeaponData) ~= 'table' or not CurrentWeaponData.slot or
+       not CurrentWeaponData.name or not amount then return end
+    local slot = Player.PlayerData.items[CurrentWeaponData.slot]
+    if not slot or slot.name ~= CurrentWeaponData.name or slot.type ~= 'weapon' then return end
+    amount = math.floor(math.max(0, math.min(9999, amount)))
+    slot.info = slot.info or {}
+    slot.info.ammo = amount
+    Player.SetInventory(Player.PlayerData.items, true)
 end)
 
 RegisterNetEvent('qb-weapons:server:TakeBackWeapon', function(k)
@@ -210,10 +212,33 @@ RegisterNetEvent('qb-weapons:server:UpdateWeaponQuality', function(data, RepeatA
     Player.SetInventory(Player.PlayerData.items, true)
 end)
 
-RegisterNetEvent('qb-weapons:server:removeWeaponAmmoItem', function(item)
-    local Player = exports['qb-core']:GetPlayer(source)
-    if not Player or type(item) ~= 'table' or not item.name or not item.slot then return end
-    exports['qb-inventory']:RemoveItem(source, item.name, 1, item.slot, 'qb-weapons:server:removeWeaponAmmoItem')
+-- Legacy event disabled: an arbitrary client must not be able to remove ammo items.
+RegisterNetEvent('qb-weapons:server:removeWeaponAmmoItem', function() end)
+
+local reloadCooldown = {}
+RegisterNetEvent('gcrp-ammo:server:requestReload', function(ammoSlot, weaponSlot, weaponName, ammoType, amount)
+    local src = source
+    local player = exports['qb-core']:GetPlayer(src)
+    if not player or type(ammoSlot) ~= 'number' or type(weaponSlot) ~= 'number' or
+       type(weaponName) ~= 'string' or type(ammoType) ~= 'string' or
+       type(amount) ~= 'number' then return end
+    local now = GetGameTimer()
+    if reloadCooldown[src] and now - reloadCooldown[src] < 1500 then return end
+    local ammoItem = player.PlayerData.items[ammoSlot]
+    local weaponItem = player.PlayerData.items[weaponSlot]
+    local weaponInfo = sharedWeapons[GetHashKey(weaponName)]
+    if not ammoItem or not weaponItem or weaponItem.name ~= weaponName or
+       not weaponInfo or weaponInfo.ammotype ~= ammoType then return end
+    local config = Config.AmmoTypes[ammoItem.name]
+    if not config or config.ammoType ~= ammoType or amount < 1 or amount > config.amount then return end
+    if not exports['qb-inventory']:RemoveItem(src, ammoItem.name, 1, ammoSlot, 'gcrp-ammo:reload') then return end
+    reloadCooldown[src] = now
+    TriggerClientEvent('qb-inventory:client:ItemBox', src, sharedItems[ammoItem.name], 'remove')
+    TriggerClientEvent('gcrp-ammo:client:applyReload', src, weaponName, weaponSlot, amount)
+end)
+
+AddEventHandler('playerDropped', function()
+    reloadCooldown[source] = nil
 end)
 
 -- Commands

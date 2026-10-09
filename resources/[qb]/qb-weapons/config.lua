@@ -17,6 +17,13 @@ Config.AmmoTypes = {
     mg_ammo = { ammoType = 'AMMO_MG', amount = 30 },
     snp_ammo = { ammoType = 'AMMO_SNIPER', amount = 10 },
     emp_ammo = { ammoType = 'AMMO_EMPLAUNCHER', amount = 10 },
+    flare_ammo = { ammoType = 'AMMO_FLARE', amount = 5 },
+    rpg_ammo = { ammoType = 'AMMO_RPG', amount = 1 },
+    grenadelauncher_ammo = { ammoType = 'AMMO_GRENADELAUNCHER', amount = 5 },
+    minigun_ammo = { ammoType = 'AMMO_MINIGUN', amount = 100 },
+    homing_ammo = { ammoType = 'AMMO_STINGER', amount = 1 },
+    petrolcan_ammo = { ammoType = 'AMMO_PETROLCAN', amount = 100 },
+    ball_ammo = { ammoType = 'AMMO_BALL', amount = 1 },
 }
 
 Config.Throwables = {

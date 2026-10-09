@@ -3,7 +3,7 @@ Config = { }
 Config.Open = {
     command = 'clothing',
     label = 'Open clothing menu',
-    key = 'Y'
+    key = 'K'
 }
 
 Config.HideMinimap = true

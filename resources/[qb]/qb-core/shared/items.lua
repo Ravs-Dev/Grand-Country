@@ -216,6 +216,16 @@ QBCore.Shared.Items = {
     snp_ammo                     = { name = 'snp_ammo', label = 'Sniper ammo', weight = 1000, type = 'item', image = 'rifle_ammo.png', unique = false, useable = true, shouldClose = true, description = 'Ammo for Sniper Rifles' },
     emp_ammo                     = { name = 'emp_ammo', label = 'EMP Ammo', weight = 200, type = 'item', image = 'emp_ammo.png', unique = false, useable = true, shouldClose = true, description = 'Ammo for EMP Launcher' },
 
+
+    -- GCRP additional ammunition (aligned with existing weapon ammotype)
+    flare_ammo                   = { name = 'flare_ammo', label = 'Flare Ammo', weight = 500, type = 'item', image = 'placeholder.png', unique = false, useable = true, shouldClose = true, description = 'Flare Ammo for compatible weapons' },
+    rpg_ammo                     = { name = 'rpg_ammo', label = 'RPG Ammo', weight = 500, type = 'item', image = 'placeholder.png', unique = false, useable = true, shouldClose = true, description = 'RPG Ammo for compatible weapons' },
+    grenadelauncher_ammo         = { name = 'grenadelauncher_ammo', label = 'Grenade Launcher Ammo', weight = 500, type = 'item', image = 'placeholder.png', unique = false, useable = true, shouldClose = true, description = 'Grenade Launcher Ammo for compatible weapons' },
+    minigun_ammo                 = { name = 'minigun_ammo', label = 'Minigun Ammo', weight = 500, type = 'item', image = 'placeholder.png', unique = false, useable = true, shouldClose = true, description = 'Minigun Ammo for compatible weapons' },
+    homing_ammo                  = { name = 'homing_ammo', label = 'Homing Launcher Ammo', weight = 500, type = 'item', image = 'placeholder.png', unique = false, useable = true, shouldClose = true, description = 'Homing Launcher Ammo for compatible weapons' },
+    petrolcan_ammo               = { name = 'petrolcan_ammo', label = 'Petrol Can Fuel', weight = 500, type = 'item', image = 'placeholder.png', unique = false, useable = true, shouldClose = true, description = 'Petrol Can Fuel for compatible weapons' },
+    ball_ammo                    = { name = 'ball_ammo', label = 'Ball Ammo', weight = 500, type = 'item', image = 'placeholder.png', unique = false, useable = true, shouldClose = true, description = 'Ball Ammo for compatible weapons' },
+
     -- Card ITEMS
     id_card                      = { name = 'id_card', label = 'ID Card', weight = 0, type = 'item', image = 'id_card.png', unique = true, useable = true, shouldClose = false, description = 'A card containing all your information to identify yourself' },
     driver_license               = { name = 'driver_license', label = 'Drivers License', weight = 0, type = 'item', image = 'driver_license.png', unique = true, useable = true, shouldClose = false, description = 'Permit to show you can drive a vehicle' },

@@ -1,0 +1,153 @@
+.gcr-speedometer {
+    --vehicle-accent: #ff7600;
+    --vehicle-accent-soft: #ffad68;
+    --vehicle-white: rgba(255,255,255,.96);
+    --vehicle-muted: rgba(255,255,255,.52);
+    --vehicle-track: rgba(255,255,255,.12);
+    --vehicle-danger: #ff4f4f;
+    position: fixed;
+    left: 50%;
+    bottom: 2.2vh;
+    width: 240px;
+    height: 158px;
+    transform: translateX(-50%);
+    z-index: 80;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity .18s ease, transform .18s ease;
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,.42));
+}
+.gcr-speedometer.hidden-card { display: none !important; }
+.gcr-speedometer .speedo-shell { position: relative; width: 100%; height: 100%; }
+.gcr-speedometer .speedo-dial { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.gcr-speedometer .speedo-arc-bg,
+.gcr-speedometer .speedo-arc-live { fill: none; stroke-linecap: round; }
+.gcr-speedometer .speedo-arc-bg { stroke: rgba(255,255,255,.14); stroke-width: 7; }
+.gcr-speedometer .speedo-arc-live {
+    stroke: var(--vehicle-accent);
+    stroke-width: 8;
+    stroke-dasharray: 0 100;
+    transition: stroke-dasharray .12s linear, stroke .18s ease;
+    filter: drop-shadow(0 0 4px rgba(255,118,0,.50));
+}
+.gcr-speedometer .speedo-ticks line {
+    stroke: rgba(255,255,255,.58);
+    stroke-width: 2.3;
+    stroke-linecap: round;
+}
+.gcr-speedometer .speedo-numbers text {
+    fill: rgba(255,255,255,.74);
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 8px;
+    font-weight: 800;
+    text-anchor: middle;
+}
+.gcr-speedometer .speedo-center {
+    position: absolute;
+    left: 50%;
+    top: 48px;
+    width: 116px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1;
+    text-shadow: 0 2px 5px rgba(0,0,0,.75);
+}
+.gcr-speedometer .speedo-gear {
+    min-width: 22px;
+    height: 18px;
+    padding: 0 5px;
+    display: grid;
+    place-items: center;
+    border-radius: 6px;
+    border: 1px solid rgba(255,118,0,.36);
+    background: rgba(0,0,0,.32);
+    color: var(--vehicle-accent-soft);
+    font-size: 9px;
+    font-weight: 900;
+    margin-bottom: 2px;
+}
+.gcr-speedometer .speedo-speed {
+    color: var(--vehicle-white);
+    font-size: 45px;
+    font-weight: 300;
+    letter-spacing: -2.6px;
+    min-width: 90px;
+    text-align: center;
+}
+.gcr-speedometer .speedo-unit {
+    margin-top: 1px;
+    color: rgba(255,255,255,.65);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .6px;
+}
+.gcr-speedometer .speedo-status-row {
+    position: absolute;
+    left: 31px;
+    right: 31px;
+    bottom: 1px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+.gcr-speedometer .vehicle-status {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "label value" "bar bar";
+    column-gap: 4px;
+    row-gap: 3px;
+    align-items: center;
+}
+.gcr-speedometer .vehicle-status-label {
+    grid-area: label;
+    color: rgba(255,255,255,.58);
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: .5px;
+}
+.gcr-speedometer .vehicle-status b {
+    grid-area: value;
+    color: rgba(255,255,255,.82);
+    font-size: 7px;
+    font-weight: 900;
+}
+.gcr-speedometer .vehicle-mini-bar {
+    grid-area: bar;
+    position: relative;
+    height: 4px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--vehicle-track);
+}
+.gcr-speedometer .vehicle-mini-bar i {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #ff9c3d, var(--vehicle-accent));
+    box-shadow: 0 0 4px rgba(255,118,0,.38);
+    transition: width .15s linear, background .18s ease;
+}
+.gcr-speedometer .vehicle-status.low .vehicle-mini-bar i { background: linear-gradient(90deg, #ff9a24, #ff6424); }
+.gcr-speedometer .vehicle-status.critical .vehicle-mini-bar i { background: var(--vehicle-danger); }
+.gcr-speedometer .vehicle-status.critical b { color: #ff8181; }
+.gcr-speedometer .belt-status.on .vehicle-mini-bar i {
+    width: 100% !important;
+    background: linear-gradient(90deg, #ffa348, var(--vehicle-accent));
+}
+.gcr-speedometer .belt-status:not(.on) .vehicle-mini-bar i {
+    width: 20% !important;
+    background: var(--vehicle-danger);
+}
+.gcr-speedometer .belt-status.on b { color: var(--vehicle-accent-soft); }
+.gcr-speedometer .belt-status:not(.on) b { color: #ff7474; }
+
+@media (max-width: 1366px) {
+    .gcr-speedometer { width: 210px; height: 139px; bottom: 1.7vh; }
+    .gcr-speedometer .speedo-center { top: 42px; }
+    .gcr-speedometer .speedo-speed { font-size: 39px; }
+    .gcr-speedometer .speedo-status-row { left: 27px; right: 27px; }
+}

@@ -69,51 +69,61 @@ end)
 RegisterNetEvent('qb-weapons:client:AddAmmo', function(ammoType, amount, itemData)
     local ped = PlayerPedId()
     local weapon = GetSelectedPedWeapon(ped)
-
-    if not CurrentWeaponData then
-        QBCore.Functions.Notify(Lang:t('error.no_weapon'), 'error')
-        return
-    end
-
-    if QBCore.Shared.Weapons[weapon]['name'] == 'weapon_unarmed' then
+    local weaponInfo = QBCore.Shared.Weapons[weapon]
+    local equipped = CurrentWeaponData
+    if not weaponInfo or weapon == `WEAPON_UNARMED` or
+       type(equipped) ~= 'table' or not equipped.name or not equipped.slot or
+       joaat(equipped.name) ~= weapon then
         QBCore.Functions.Notify(Lang:t('error.no_weapon_in_hand'), 'error')
         return
     end
-
-    if QBCore.Shared.Weapons[weapon]['ammotype'] ~= ammoType:upper() then
+    if type(ammoType) ~= 'string' or weaponInfo.ammotype ~= ammoType:upper() then
         QBCore.Functions.Notify(Lang:t('error.wrong_ammo'), 'error')
         return
     end
-
     local total = GetAmmoInPedWeapon(ped, weapon)
-    local _, maxAmmo = GetMaxAmmo(ped, weapon)
-
-    if total >= maxAmmo then
+    local validMax, maxAmmo = GetMaxAmmo(ped, weapon)
+    if not validMax or not maxAmmo or total >= maxAmmo then
         QBCore.Functions.Notify(Lang:t('error.max_ammo'), 'error')
         return
     end
+    if type(itemData) ~= 'table' or not itemData.name or not itemData.slot then return end
+    local ammoToAdd = math.max(0, math.min(tonumber(amount) or 0, maxAmmo - total))
+    if ammoToAdd == 0 then return end
 
     QBCore.Functions.Progressbar('taking_bullets', Lang:t('info.loading_bullets'), Config.ReloadTime, false, true, {
         disableMovement = false,
         disableCarMovement = false,
         disableMouse = false,
         disableCombat = true,
-    }, {}, {}, {}, function()              -- Done
-        weapon = GetSelectedPedWeapon(ped) -- Get weapon at time of completion
-
-        if QBCore.Shared.Weapons[weapon]?.ammotype ~= ammoType then
-            return QBCore.Functions.Notify(Lang:t('error.wrong_ammo'), 'error')
+    }, {}, {}, {}, function()
+        local activeWeapon = GetSelectedPedWeapon(ped)
+        local activeInfo = QBCore.Shared.Weapons[activeWeapon]
+        if activeWeapon ~= weapon or not activeInfo or activeInfo.ammotype ~= ammoType:upper() or
+           not CurrentWeaponData or CurrentWeaponData.slot ~= equipped.slot then
+            QBCore.Functions.Notify(Lang:t('error.wrong_ammo'), 'error')
+            return
         end
-
-        AddAmmoToPed(ped, weapon, amount)
-        TaskReloadWeapon(ped, false)
-        TriggerServerEvent('qb-weapons:server:UpdateWeaponAmmo', CurrentWeaponData, total + amount)
-        TriggerServerEvent('qb-weapons:server:removeWeaponAmmoItem', itemData)
-        TriggerEvent('qb-inventory:client:ItemBox', QBCore.Shared.Items[itemData.name], 'remove')
-        TriggerEvent('QBCore:Notify', Lang:t('success.reloaded'), 'success')
+        -- Server confirms owned ammo and matches the equipped weapon before applying it.
+        TriggerServerEvent('gcrp-ammo:server:requestReload', itemData.slot, equipped.slot, equipped.name, ammoType:upper(), ammoToAdd)
     end, function()
         QBCore.Functions.Notify(Lang:t('error.canceled'), 'error')
     end)
+end)
+
+RegisterNetEvent('gcrp-ammo:client:applyReload', function(weaponName, weaponSlot, rounds)
+    local ped = PlayerPedId()
+    local weapon = GetSelectedPedWeapon(ped)
+    if type(weaponName) ~= 'string' or joaat(weaponName) ~= weapon or
+       not CurrentWeaponData or CurrentWeaponData.slot ~= weaponSlot then return end
+    local validMax, maxAmmo = GetMaxAmmo(ped, weapon)
+    if not validMax or not maxAmmo then return end
+    local total = GetAmmoInPedWeapon(ped, weapon)
+    AddAmmoToPed(ped, weapon, math.min(math.max(tonumber(rounds) or 0, 0), math.max(maxAmmo - total, 0)))
+    TaskReloadWeapon(ped, false)
+    local actual = GetAmmoInPedWeapon(ped, weapon)
+    TriggerServerEvent('qb-weapons:server:UpdateWeaponAmmo', CurrentWeaponData, actual)
+    QBCore.Functions.Notify(Lang:t('success.reloaded'), 'success')
 end)
 
 RegisterNetEvent('qb-weapons:client:UseWeapon', function(weaponData, shootbool)
