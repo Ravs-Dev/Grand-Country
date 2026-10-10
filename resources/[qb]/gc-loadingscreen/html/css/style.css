@@ -27,6 +27,16 @@ body {
     color: var(--white);
 }
 
+body {
+    opacity: 1;
+    transition: opacity 700ms ease;
+}
+
+body.is-finishing {
+    opacity: 0;
+    pointer-events: none;
+}
+
 button,
 a {
     font: inherit;
@@ -42,6 +52,9 @@ a {
 
 .background-fallback {
     z-index: 0;
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.08)),
+        url("../assets/background-poster.jpg") center center / cover no-repeat;
 }
 
 .background-video {
@@ -102,7 +115,7 @@ a {
     display: flex;
     align-items: center;
     gap: 0;
-    width: clamp(570px, 33.5vw, 680px);
+    width: clamp(450px, 27vw, 560px);
     min-height: 5.9vh;
     padding: 0.68vh 0.48vw;
     overflow: hidden;
@@ -998,7 +1011,7 @@ a {
     position: absolute;
     top: 0.7vh;
     left: 6.39vw;
-    width: 30.5vw;
+    width: 20vw;
     z-index: 3;
 }
 
@@ -1064,8 +1077,8 @@ a {
     width: 0;
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, #1d8bff, #1584ff 72%, #47a6ff);
-    box-shadow: 0 0 22px rgba(29, 139, 255, 0.52);
+    background: linear-gradient(90deg, var(--blue), var(--blue-soft));
+    box-shadow: 0 0 22px rgba(255, 122, 24, 0.46);
     transition: width 450ms ease;
 }
 
@@ -1146,7 +1159,7 @@ a {
     height: 5px;
     border-radius: 999px;
     background: var(--blue);
-    box-shadow: 0 0 10px rgba(29, 139, 255, 0.4);
+    box-shadow: 0 0 10px rgba(255, 122, 24, 0.38);
     animation: wave 1.1s ease-in-out infinite;
 }
 
@@ -1304,13 +1317,13 @@ a {
 }
 
 .social-row a:hover {
-    border-color: rgba(29, 139, 255, 0.52);
+    border-color: rgba(255, 122, 24, 0.52);
     background:
         linear-gradient(145deg, rgba(255, 255, 255, 0.13), transparent 44%),
         rgba(22, 22, 25, 0.62);
     color: var(--blue-soft);
     transform: translateY(-0.42vh) scale(1.04);
-    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28), 0 0 28px rgba(29, 139, 255, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28), 0 0 28px rgba(255, 122, 24, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 .social-row a::before {

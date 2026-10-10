@@ -1,0 +1,11 @@
+GCRP loading screen audio fix
+
+- music-gcrp.mp3 re-encoded as clean audio-only MP3 (44.1 kHz stereo, 192 kbps)
+- removed embedded cover-art stream from the MP3
+- HTML audio now declares audio/mpeg explicitly and uses autoplay/loop
+- autoplay now first attempts audible playback, then a FiveM/CEF muted-bootstrap fallback
+- first click/key press automatically unlocks audio if Chromium blocks autoplay
+- music retries when NUI becomes visible/focused
+- default volume changed to 55%
+
+If one specific PC still has no NUI audio, check Windows Volume Mixer for FiveM/Chromium audio output.

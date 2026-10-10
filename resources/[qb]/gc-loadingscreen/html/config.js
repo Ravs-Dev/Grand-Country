@@ -2,13 +2,12 @@ const IconixLinks = {
     discord: "#",
     instagram: "#",
     youtube: "#",
-    website: "#",
-    tebex: "#"
+    website: "#"
 };
 
 window.LoadingScreenConfig = {
-    framework: "standalone", // standalone, qbcore, qbox, esx
-    pageTitle: "Iconix Loading Screen",
+    framework: "standalone",
+    pageTitle: "Grand Country Roleplay",
     links: IconixLinks,
 
     assets: {
@@ -25,31 +24,34 @@ window.LoadingScreenConfig = {
     },
 
     theme: {
-        // Change these two values to recolor the main theme.
-        // Most servers only need to change "accent".
-        accent: "#2daae1",
-        accentSoft: "#5aa8ff",
+        accent: "#ff7a18",
+        accentSoft: "#ffad5c",
         white: "#f8fbff",
         muted: "#a0a3aa"
     },
 
     loading: {
-        startProgress: 73,
+        startProgress: 0,
         label: "Loading",
         statuses: [
-            { percent: 0, text: "Connecting to server..." },
-            { percent: 30, text: "Loading server files..." },
-            { percent: 60, text: "Initializing assets..." },
-            { percent: 90, text: "Finalizing session..." }
+            { percent: 0, text: "Connecting to Grand Country..." },
+            { percent: 25, text: "Loading server files..." },
+            { percent: 55, text: "Initializing city assets..." },
+            { percent: 80, text: "Preparing your session..." },
+            { percent: 99, text: "Entering Grand Country..." }
         ]
     },
 
     music: {
-        volume: 35,
+        volume: 55,
         autoplay: true,
         loop: true,
         tracks: [
-            { name: "Late Nights", artist: "Iconix Beats", src: "./assets/music/late-nights.mp3" }
+            {
+                name: "Grand Country Radio",
+                artist: "GCRP",
+                src: "./assets/music/music-gcrp.mp3"
+            }
         ]
     },
 
@@ -67,11 +69,11 @@ window.LoadingScreenConfig = {
             action: null,
             items: [
                 { icon: "01", title: "Respect Everyone", text: "Be kind and respectful to all players and staff." },
-                { icon: "02", title: "No Cheating", text: "Exploiting, cheating, or using third-party software is prohibited." },
-                { icon: "03", title: "RDM & VDM", text: "Random deathmatch and vehicle deathmatch are strictly prohibited." },
-                { icon: "04", title: "Respect & Conduct", text: "Maintain a respectful environment. Toxicity, hate speech, and harassment will not be tolerated." },
-                { icon: "05", title: "Metagaming", text: "Using out-of-character information to influence in-game actions is forbidden." },
-                { icon: "06", title: "Value Your Roleplay", text: "Always roleplay with purpose and keep immersion alive." }
+                { icon: "02", title: "No Cheating", text: "Exploiting, cheating, or using prohibited third-party software is not allowed." },
+                { icon: "03", title: "RDM & VDM", text: "Random deathmatch and vehicle deathmatch are prohibited." },
+                { icon: "04", title: "Respect & Conduct", text: "Keep the roleplay environment respectful and enjoyable." },
+                { icon: "05", title: "Metagaming", text: "Do not use out-of-character information to influence in-game actions." },
+                { icon: "06", title: "Value Your Roleplay", text: "Roleplay with purpose and keep immersion alive." }
             ]
         },
 
@@ -110,12 +112,11 @@ window.LoadingScreenConfig = {
             icon: "./assets/icons/nav-staff.svg",
             action: null,
             groups: [
-                { role: "Founder", members: [{ name: "Iconix", title: "Project Founder", initial: "I", avatarClass: "avatar-blue" }] },
-                { role: "Head Administrator", members: [{ name: "Nova", title: "Head Administrator", initial: "N", avatarClass: "avatar-gold" }] },
-                { role: "Senior Administrator", members: [{ name: "Aura", title: "Senior Administrator", initial: "A", avatarClass: "avatar-slate" }] },
-                { role: "Support Team", members: [{ name: "Support", title: "Player Support", initial: "S", avatarClass: "avatar-rose" }] }
+                { role: "Founder", members: [{ name: "GCRP", title: "Server Management", initial: "G", avatarClass: "avatar-blue" }] },
+                { role: "Administration", members: [{ name: "Admin Team", title: "Server Administration", initial: "A", avatarClass: "avatar-gold" }] },
+                { role: "Support Team", members: [{ name: "Support", title: "Player Support", initial: "S", avatarClass: "avatar-slate" }] }
             ]
-        },
+        }
     },
 
     socials: {

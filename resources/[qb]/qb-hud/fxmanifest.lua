@@ -17,6 +17,6 @@ files {
     'html/hud.html',
     'html/style.css',
     'html/app.js',
-    'images/logo.png',
+    'images/logo.webm',
     'images/body.png'
 }

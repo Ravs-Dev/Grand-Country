@@ -35,15 +35,20 @@ let realProgress = displayedProgress;
 let musicStarted = false;
 let musicTracks = [];
 let currentTrackIndex = 0;
+let configuredMusicVolume = 0.55;
+let audioBootstrapDone = false;
+let audioUnlockBound = false;
 
 const DEFAULT_MUSIC_TRACK = {
-    name: "Late Nights",
-    artist: "Iconix Beats",
-    src: "./assets/music/late-nights.mp3"
+    name: "Grand Country Radio",
+    artist: "GCRP",
+    src: "./assets/music/music-gcrp.mp3"
 };
 
 function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, Number(value)));
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return min;
+    return Math.max(min, Math.min(max, numeric));
 }
 
 function setIfValue(element, property, value) {
@@ -314,8 +319,8 @@ function applyAssets() {
         logoImage.src = config.assets.logo;
     }
 
-    music.loop = false;
     music.autoplay = config.music?.autoplay !== false;
+    music.preload = "auto";
 }
 
 function renderNav() {
@@ -685,6 +690,7 @@ function openInfoMenu(panelName) {
 
 function setMusicVolume(value) {
     const volume = clamp(value, 0, 100) / 100;
+    configuredMusicVolume = volume;
     music.volume = volume;
     music.muted = volume === 0;
     volumeSlider.value = String(Math.round(volume * 100));
@@ -732,21 +738,90 @@ function setupBackgroundVideo() {
     });
 }
 
+function markMusicPlaying() {
+    musicStarted = !music.paused;
+    playToggle.classList.toggle("is-paused", music.paused);
+    muteToggle.classList.toggle("is-muted", music.muted || music.volume === 0);
+}
+
+function unlockMusicAudio() {
+    if (configuredMusicVolume <= 0) return;
+
+    music.muted = false;
+    music.volume = configuredMusicVolume;
+
+    if (music.paused) {
+        music.play().then(markMusicPlaying).catch(() => {});
+    } else {
+        markMusicPlaying();
+    }
+}
+
+function bindAudioUnlock() {
+    if (audioUnlockBound) return;
+    audioUnlockBound = true;
+
+    const unlock = () => {
+        unlockMusicAudio();
+        ["pointerdown", "mousedown", "click", "touchstart", "keydown"].forEach((name) => {
+            window.removeEventListener(name, unlock, true);
+        });
+    };
+
+    ["pointerdown", "mousedown", "click", "touchstart", "keydown"].forEach((name) => {
+        window.addEventListener(name, unlock, { capture: true, once: true });
+    });
+}
+
 async function startMusic() {
+    if (!music || configuredMusicVolume <= 0) {
+        markMusicPlaying();
+        return;
+    }
+
+    // First try normal audible autoplay.
+    music.volume = configuredMusicVolume;
+    music.muted = false;
+
     try {
-        music.muted = music.volume === 0;
         await music.play();
-        musicStarted = true;
-        playToggle.classList.remove("is-paused");
-        muteToggle.classList.toggle("is-muted", music.muted || music.volume === 0);
+        audioBootstrapDone = true;
+        markMusicPlaying();
+        return;
     } catch (error) {
+        console.warn("[GCRP] Audible autoplay was blocked, using CEF muted bootstrap.", error);
+    }
+
+    // FiveM uses CEF/Chromium. Muted autoplay is allowed more reliably, then
+    // we restore the configured volume once playback has actually started.
+    try {
+        music.muted = true;
+        music.volume = configuredMusicVolume;
+        await music.play();
+        audioBootstrapDone = true;
+        markMusicPlaying();
+
+        setTimeout(() => {
+            music.muted = false;
+            music.volume = configuredMusicVolume;
+            markMusicPlaying();
+        }, 150);
+    } catch (error) {
+        console.warn("[GCRP] Music autoplay failed. Waiting for player input.", error);
+        musicStarted = false;
         playToggle.classList.add("is-paused");
+        bindAudioUnlock();
     }
 }
 
 function retryMusicStart() {
-    if (!musicStarted && music.paused) {
+    if (music.paused) {
         startMusic();
+        return;
+    }
+
+    if (music.muted && configuredMusicVolume > 0) {
+        unlockMusicAudio();
     }
 }
 
@@ -754,8 +829,12 @@ function setupMusicControls() {
     musicTracks = getMusicTracks();
     setMusicTrack(0, false);
 
-    const configuredVolume = clamp(config.music?.volume ?? 35, 0, 100);
+    const configuredVolume = clamp(config.music?.volume ?? 55, 0, 100);
+    configuredMusicVolume = configuredVolume / 100;
     setMusicVolume(configuredVolume);
+
+    // Native loop is the most reliable option for a single loading-screen song.
+    music.loop = musicTracks.length === 1 && config.music?.loop !== false;
 
     previousTrackButton.addEventListener("click", () => {
         playPreviousTrack(true);
@@ -793,6 +872,38 @@ function setupMusicControls() {
         setVolumePopover(false);
     });
 
+    music.addEventListener("playing", () => {
+        musicStarted = true;
+        playToggle.classList.remove("is-paused");
+        muteToggle.classList.toggle("is-muted", music.muted || music.volume === 0);
+    });
+
+    music.addEventListener("canplay", () => {
+        if (!musicStarted && config.music?.autoplay !== false) {
+            startMusic();
+        }
+    }, { once: true });
+
+    music.addEventListener("loadeddata", () => {
+        if (!audioBootstrapDone && config.music?.autoplay !== false) {
+            startMusic();
+        }
+    }, { once: true });
+
+    music.addEventListener("pause", () => {
+        if (!music.ended) playToggle.classList.add("is-paused");
+    });
+
+    music.addEventListener("error", () => {
+        musicStarted = false;
+        playToggle.classList.add("is-paused");
+
+        // If a playlist item is missing, skip it instead of leaving the player dead.
+        if (musicTracks.length > 1) {
+            playNextTrack(true);
+        }
+    });
+
     music.addEventListener("ended", () => {
         const isLastTrack = currentTrackIndex >= musicTracks.length - 1;
 
@@ -815,13 +926,28 @@ function setupMusicControls() {
     document.addEventListener("keydown", retryMusicStart, { once: true });
 }
 
+function setupMusicRecovery() {
+    window.addEventListener("focus", retryMusicStart);
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) retryMusicStart();
+    });
+}
+
 function setupFiveMLoadProgress() {
     window.addEventListener("message", (event) => {
         const data = event.data || {};
 
         if (data.eventName === "loadProgress") {
-            realProgress = Number(data.loadFraction || 0) * 100;
-            setProgress(realProgress);
+            const fraction = clamp(data.loadFraction ?? 0, 0, 1);
+            realProgress = fraction * 100;
+            setProgress(Math.min(realProgress, 99));
+            return;
+        }
+
+        if (data.action === "finalizeLoading") {
+            setProgress(100);
+            if (statusText) statusText.textContent = "Entering Grand Country...";
+            document.body.classList.add("is-finishing");
             return;
         }
 
@@ -887,6 +1013,7 @@ function boot() {
     bindKeybindEvents();
     setProgress(displayedProgress);
     setupMusicControls();
+    setupMusicRecovery();
     setupFiveMLoadProgress();
     setupKeyboardShortcuts();
     bindExternalLinks();

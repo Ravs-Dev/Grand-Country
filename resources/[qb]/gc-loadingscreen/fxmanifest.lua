@@ -1,16 +1,16 @@
 fx_version 'cerulean'
 game 'gta5'
 
-author 'Iconix Studios'
-description 'Iconix FiveM loading screen for QBCore, Qbox, ESX, and standalone servers'
-version '1.0.7'
+author 'Iconix Studios / GCRP configuration'
+description 'Grand Country Roleplay loading screen'
+version '1.0.8-gcrp'
 
-lua54 'yes'
-
-ui_page 'html/index.html'
+loadscreen 'html/index.html'
 loadscreen_cursor 'yes'
+loadscreen_manual_shutdown 'yes'
 
 shared_script 'config.lua'
+client_script 'client.lua'
 
 files {
     'html/index.html',
@@ -25,6 +25,7 @@ files {
 }
 
 escrow_ignore {
+    'client.lua',
     'html/config.js',
     'html/assets/background.webm',
     'html/assets/background-poster.jpg',
@@ -32,6 +33,5 @@ escrow_ignore {
     'html/assets/music/*.mp3'
 }
 
-dependency '/assetpacks'
-
+-- Keep a single Asset Escrow runtime requirement for the protected config.
 dependency '/assetpacks'

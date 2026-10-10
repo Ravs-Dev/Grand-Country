@@ -1,0 +1,30 @@
+GRAND COUNTRY ROLEPLAY - LOADING SCREEN FIX
+================================================
+
+INSTALL
+1. Put folder "gc-loadingscreen" in resources/[standalone]/
+2. Make sure there is only ONE loading-screen resource enabled.
+3. If you already use: ensure [standalone]
+   you do not need a second ensure line for this folder.
+4. Recommended server.cfg setting:
+
+   setr sv_showBusySpinnerOnLoadingScreen false
+
+5. Restart the server and clear the FiveM client cache if an old UI is still shown.
+
+WHAT WAS FIXED
+- Manual loading-screen shutdown, so it stays visible through the late AFTER_MAP / SESSION stage.
+- Smooth transition to the game after the network session is ready.
+- Wrong music path fixed: music-gcrp.mp3 is the only configured track.
+- Single-track native looping enabled; no random stop at end of the song.
+- Audio errors no longer break the whole UI.
+- Store/Web buttons and Tebex item removed.
+- Missing nav-web.svg reference removed.
+- Background image fallback added if the WebM video is delayed or fails.
+- Loading progress starts at 0 and caps at 99 until the client is actually ready.
+- Duplicate /assetpacks dependency removed.
+
+NOTE
+The supplied protected config.lua/.fxap files were left intact. If the server console reports
+an Asset Escrow/entitlement error for this resource, that must be resolved with the original
+licensed resource entitlement; this package does not bypass it.
