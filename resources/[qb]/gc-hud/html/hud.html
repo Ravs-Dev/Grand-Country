@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grand Country Roleplay HUD</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="hud" class="hud hidden">
+
+    <section id="bodyCard" class="body-card panel">
+        <header class="body-header">
+            <div>
+                <strong>PLAYER</strong>
+                <small>CONDITION</small>
+            </div>
+            <span id="conditionState" class="condition-state safe">SAFE</span>
+        </header>
+
+        <div class="body-visual">
+            <img src="../images/body.png" class="body-image" alt="Body condition">
+
+            <span id="injHead" class="injury-zone zone-head"></span>
+            <span id="injTorso" class="injury-zone zone-torso"></span>
+            <span id="injLeftArm" class="injury-zone zone-left-arm"></span>
+            <span id="injRightArm" class="injury-zone zone-right-arm"></span>
+            <span id="injLeftLeg" class="injury-zone zone-left-leg"></span>
+            <span id="injRightLeg" class="injury-zone zone-right-leg"></span>
+        </div>
+
+        <i class="cut cut-tl"></i>
+        <i class="cut cut-tr"></i>
+        <i class="cut cut-bl"></i>
+        <i class="cut cut-br"></i>
+    </section>
+
+    <aside class="info-stack">
+        <div class="server-title">GRAND COUNTRY <span>ROLEPLAY</span></div>
+
+        <section id="profileCard" class="profile-card panel">
+            <div class="profile-info">
+                <div class="profile-line main-line">
+                    <span class="ico user-ico"></span>
+                    <strong id="serverId">#0</strong>
+                </div>
+                <div class="profile-line">
+                    <span class="ico calendar-ico"></span>
+                    <span id="dateText">--/--/----</span>
+                </div>
+                <div class="profile-line">
+                    <span class="ico clock-ico"></span>
+                    <span id="timeText">--:--</span>
+                </div>
+            </div>
+
+            <div id="logoBox" class="logo-box">
+                <video class="server-logo server-logo-video" autoplay loop muted playsinline poster="../images/logo.png" aria-label="GCR logo">
+                    <source src="../images/logo.webm" type="video/webm">
+                </video>
+            </div>
+        </section>
+
+        <section class="info-row panel">
+            <span class="row-icon people-ico"></span>
+            <span id="playerCount">0 Players</span>
+        </section>
+
+        <section class="info-row panel split-row">
+            <span class="row-icon cash-ico"></span>
+            <span class="row-label">Cash</span>
+            <strong id="cash">$0</strong>
+        </section>
+
+        <section class="info-row panel split-row">
+            <span class="row-icon bank-ico"></span>
+            <span class="row-label">Bank</span>
+            <strong id="bank">$0</strong>
+        </section>
+
+        <div class="row-gap"></div>
+
+        <section class="info-row panel">
+            <span class="row-icon job-ico"></span>
+            <span id="job">Civilian - Freelancer</span>
+        </section>
+
+        <section class="info-row panel">
+            <span class="row-icon people-ico"></span>
+            <span id="gang">No Gang - Unaffiliated</span>
+        </section>
+
+
+    </aside>
+
+    <section class="status-stack">
+        <!-- HEALTH & ARMOR remain compact bars -->
+        <div class="status-row panel">
+            <div class="status-badge">❤️</div>
+            <div class="status-content">
+                <div class="status-caption"><span>HEALTH</span><b id="healthText">100%</b></div>
+                <div class="bar-shell"><div id="healthBar" class="bar-fill health-fill"></div></div>
+            </div>
+        </div>
+
+        <div class="status-row panel">
+            <div class="status-badge">🛡️</div>
+            <div class="status-content">
+                <div class="status-caption"><span>ARMOR</span><b id="armorText">0%</b></div>
+                <div class="bar-shell"><div id="armorBar" class="bar-fill armor-fill"></div></div>
+            </div>
+        </div>
+
+        <!-- IME style circular quick status -->
+        <div class="circle-status-wrap">
+            <div id="voiceCircle" class="circle-status">
+                <div class="circle-core"><span>🎤</span></div>
+                <span id="voiceText" class="circle-value">OFF</span>
+                <small class="circle-label">MIC</small>
+            </div>
+
+            <div id="hungerCircle" class="circle-status">
+                <div class="circle-core"><span>🍔</span></div>
+                <span id="hungerValue" class="circle-value">100%</span>
+                <small class="circle-label">MAKAN</small>
+            </div>
+
+            <div id="thirstCircle" class="circle-status">
+                <div class="circle-core"><span>💧</span></div>
+                <span id="thirstValue" class="circle-value">100%</span>
+                <small class="circle-label">MINUM</small>
+            </div>
+
+            <div id="stressCircle" class="circle-status">
+                <div class="circle-core"><span>😵</span></div>
+                <span id="stressValue" class="circle-value">0%</span>
+                <small class="circle-label">STRESS</small>
+            </div>
+
+            <div id="staminaCircle" class="circle-status">
+                <div class="circle-core"><span>🏃</span></div>
+                <span id="staminaValue" class="circle-value">100%</span>
+                <small class="circle-label">LARI</small>
+            </div>
+        </div>
+    </section>
+
+    <section id="vehicleHud" class="vehicle-hud hidden-card" aria-hidden="true">
+        <div class="vehicle-speedo">
+            <svg class="vehicle-dial" viewBox="0 0 230 150" aria-hidden="true">
+                <path class="dial-track"
+                      d="M 27 125 A 88 88 0 0 1 203 125"
+                      pathLength="100"></path>
+
+                <path id="vehicleRpmArc"
+                      class="dial-rpm"
+                      d="M 27 125 A 88 88 0 0 1 203 125"
+                      pathLength="100"></path>
+
+                <g class="dial-ticks">
+                    <line x1="35"  y1="112" x2="26"  y2="109"></line>
+                    <line x1="43"  y1="87"  x2="34"  y2="82"></line>
+                    <line x1="59"  y1="64"  x2="52"  y2="57"></line>
+                    <line x1="82"  y1="47"  x2="78"  y2="37"></line>
+                    <line x1="115" y1="40"  x2="115" y2="29"></line>
+                    <line x1="148" y1="47"  x2="152" y2="37"></line>
+                    <line x1="171" y1="64"  x2="178" y2="57"></line>
+                    <line x1="187" y1="87"  x2="196" y2="82"></line>
+                    <line x1="195" y1="112" x2="204" y2="109"></line>
+                </g>
+
+                <g class="dial-numbers">
+                    <text x="76"  y="43">1</text>
+                    <text x="96"  y="32">2</text>
+                    <text x="115" y="29">3</text>
+                    <text x="135" y="32">4</text>
+                    <text x="155" y="43">5</text>
+                </g>
+            </svg>
+
+            <div class="vehicle-speed-center">
+                <div id="vehicleSpeed" class="vehicle-speed-value">0</div>
+                <div id="vehicleUnit" class="vehicle-speed-unit">KM/H</div>
+            </div>
+
+            <div class="vehicle-bottom-row">
+                <div id="fuelStatus" class="vehicle-photo-status">
+                    <span>FUEL</span>
+                    <div class="vehicle-status-track"><i id="vehicleFuelBar"></i></div>
+                    <b id="vehicleFuel">100%</b>
+                </div>
+
+                <div id="engineStatus" class="vehicle-photo-status">
+                    <span>ENG</span>
+                    <div class="vehicle-status-track"><i id="vehicleEngineBar"></i></div>
+                    <b id="vehicleEngine">100%</b>
+                </div>
+
+                <div id="beltStatus" class="vehicle-photo-status belt">
+                    <span>BELT</span>
+                    <div class="vehicle-status-track"><i id="vehicleBeltBar"></i></div>
+                    <b id="vehicleBelt">OFF</b>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

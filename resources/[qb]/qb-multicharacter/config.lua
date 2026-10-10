@@ -3,7 +3,7 @@ Config = {}
 
 Config.DefaultNumberOfCharacters = 1
 Config.PlayersNumberOfCharacters = {}
-Config.EnableDeleteButton = true
+Config.EnableDeleteButton = false
 Config.SkipSelection = false
 
 Config.DefaultSpawn = vector4(-1035.71, -2731.87, 13.76, 330.0)

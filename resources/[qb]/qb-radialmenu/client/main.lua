@@ -1,700 +1,425 @@
-local QBCore = exports['qb-core']:GetCoreObject()
+QBCore = exports['qb-core']:GetCoreObject({ 'Functions' })
+PlayerData = QBCore.Functions.GetPlayerData() -- Setting this for when you restart the resource in game
+local inRadialMenu = false
 
-local PlayerData = {}
-local radialOpen = false
-local actionMap = {}
-local dynamicOptions = {}
-local optionCounter = 0
-local handsUp = false
-local pointing = false
-local activeAnim = nil
-local windowStates = {}
+local jobIndex = nil
+local vehicleIndex = nil
 
-local function debugPrint(...)
-    if Config.Debug then
-        print('^3[qb-radialmenu:gcr]^7', ...)
-    end
-end
+local DynamicMenuItems = {}
+local FinalMenuItems = {}
+local controlsToToggle = { 24, 0, 1, 2, 142, 257, 346 } -- if not using toggle
 
-local function deepCopy(value)
-    if type(value) ~= 'table' then return value end
-    local copy = {}
-    for k, v in pairs(value) do
-        copy[deepCopy(k)] = deepCopy(v)
+-- Functions
+
+local function deepcopy(orig) -- modified the deep copy function from http://lua-users.org/wiki/CopyTable
+    local orig_type = type(orig)
+    local copy
+    if orig_type == 'table' then
+        if not orig.canOpen or orig.canOpen() then
+            local toRemove = {}
+            copy = {}
+            for orig_key, orig_value in next, orig, nil do
+                if type(orig_value) == 'table' then
+                    if not orig_value.canOpen or orig_value.canOpen() then
+                        copy[deepcopy(orig_key)] = deepcopy(orig_value)
+                    else
+                        toRemove[orig_key] = true
+                    end
+                else
+                    copy[deepcopy(orig_key)] = deepcopy(orig_value)
+                end
+            end
+            for i = 1, #toRemove do table.remove(copy, i) --[[ Using this to make sure all indexes get re-indexed and no empty spaces are in the radialmenu ]] end
+            if copy and next(copy) then setmetatable(copy, deepcopy(getmetatable(orig))) end
+        end
+    elseif orig_type ~= 'function' then
+        copy = orig
     end
     return copy
 end
 
-local function resourceStarted(name)
-    if not name or name == '' then return true end
-    local state = GetResourceState(name)
-    return state == 'started' or state == 'starting'
+local function getNearestVeh()
+    local pos = GetEntityCoords(PlayerPedId())
+    local entityWorld = GetOffsetFromEntityInWorldCoords(PlayerPedId(), 0.0, 20.0, 0.0)
+    local rayHandle = CastRayPointToPoint(pos.x, pos.y, pos.z, entityWorld.x, entityWorld.y, entityWorld.z, 10, PlayerPedId(), 0)
+    local _, _, _, _, vehicleHandle = GetRaycastResult(rayHandle)
+    return vehicleHandle
 end
 
-local function getPlayerData()
-    local data = QBCore.Functions.GetPlayerData()
-    if data and data.citizenid then
-        PlayerData = data
-    end
-    return PlayerData
+local function AddOption(data, id)
+    local menuID = id ~= nil and id or (#DynamicMenuItems + 1)
+    DynamicMenuItems[menuID] = deepcopy(data)
+    DynamicMenuItems[menuID].res = GetInvokingResource()
+    return menuID
 end
 
-local function isPlayerDead()
-    if not Config.DisableWhenDead then return false end
-    local data = getPlayerData()
-    local meta = data.metadata or {}
-    return meta.isdead == true or meta.inlaststand == true or IsEntityDead(PlayerPedId())
+local function RemoveOption(id)
+    DynamicMenuItems[id] = nil
 end
 
-local function canOpenRadial()
-    if radialOpen then return true end
-    if IsPauseMenuActive() then return false end
-    if isPlayerDead() then return false end
-
-    local data = getPlayerData()
-    if not data or not data.citizenid then
-        return false
-    end
-
-    return true
-end
-
-local function notify(message, kind)
-    if QBCore and QBCore.Functions and QBCore.Functions.Notify then
-        QBCore.Functions.Notify(message, kind or 'primary')
-    end
-end
-
-local function requestControl(entity)
-    if entity == 0 or not DoesEntityExist(entity) then return false end
-    if NetworkHasControlOfEntity(entity) then return true end
-
-    NetworkRequestControlOfEntity(entity)
-    local timeout = GetGameTimer() + 600
-    while not NetworkHasControlOfEntity(entity) and GetGameTimer() < timeout do
-        Wait(0)
-        NetworkRequestControlOfEntity(entity)
-    end
-    return NetworkHasControlOfEntity(entity)
-end
-
-local function requestAnimDict(dict)
-    if HasAnimDictLoaded(dict) then return true end
-    RequestAnimDict(dict)
-    local timeout = GetGameTimer() + 2500
-    while not HasAnimDictLoaded(dict) and GetGameTimer() < timeout do
-        Wait(10)
-    end
-    return HasAnimDictLoaded(dict)
-end
-
-local function stopPointing()
-    if not pointing then return end
-    local ped = PlayerPedId()
-    RequestTaskMoveNetworkStateTransition(ped, 'Stop')
-    SetPedCurrentWeaponVisible(ped, true, true, true, true)
-    pointing = false
-end
-
-local function cancelAnimation()
-    local ped = PlayerPedId()
-    handsUp = false
-    stopPointing()
-    activeAnim = nil
-    ClearPedSecondaryTask(ped)
-    ClearPedTasks(ped)
-end
-
-local function toggleHandsUp()
-    local ped = PlayerPedId()
-    stopPointing()
-
-    if handsUp then
-        handsUp = false
-        ClearPedSecondaryTask(ped)
-        return
+local function SetupJobMenu()
+    local JobInteractionCheck = PlayerData.job.name
+    if PlayerData.job.type == 'leo' then JobInteractionCheck = 'police' end
+    local JobMenu = {
+        id = 'jobinteractions',
+        title = 'Work',
+        icon = 'briefcase',
+        items = {}
+    }
+    if Config.JobInteractions[JobInteractionCheck] and next(Config.JobInteractions[JobInteractionCheck]) and PlayerData.job.onduty then
+        JobMenu.items = Config.JobInteractions[JobInteractionCheck]
     end
 
-    if requestAnimDict('random@mugging3') then
-        handsUp = true
-        activeAnim = 'handsup'
-        TaskPlayAnim(ped, 'random@mugging3', 'handsup_standing_base', 3.0, -3.0, -1, 49, 0.0, false, false, false)
-    end
-end
-
-local function togglePointing()
-    local ped = PlayerPedId()
-    if pointing then
-        stopPointing()
-        return
-    end
-
-    handsUp = false
-    ClearPedSecondaryTask(ped)
-
-    RequestAnimDict('anim@mp_point')
-    local timeout = GetGameTimer() + 2500
-    while not HasAnimDictLoaded('anim@mp_point') and GetGameTimer() < timeout do
-        Wait(10)
-    end
-    if not HasAnimDictLoaded('anim@mp_point') then return end
-
-    SetPedCurrentWeaponVisible(ped, false, true, true, true)
-    SetPedConfigFlag(ped, 36, true)
-    Citizen.InvokeNative(0x2D537BA194896636, ped, 'task_mp_pointing', 0.5, 0, 'anim@mp_point', 24)
-    RemoveAnimDict('anim@mp_point')
-    pointing = true
-    activeAnim = 'point'
-end
-
-local function playSimpleAnim(dict, anim, flag)
-    local ped = PlayerPedId()
-    handsUp = false
-    stopPointing()
-    ClearPedSecondaryTask(ped)
-    if requestAnimDict(dict) then
-        TaskPlayAnim(ped, dict, anim, 3.0, 3.0, -1, flag or 49, 0.0, false, false, false)
-        activeAnim = anim
-    end
-end
-
-local function getCurrentVehicle()
-    local ped = PlayerPedId()
-    if not IsPedInAnyVehicle(ped, false) then return 0 end
-    return GetVehiclePedIsIn(ped, false)
-end
-
-local function isDriver(vehicle)
-    return vehicle ~= 0 and GetPedInVehicleSeat(vehicle, -1) == PlayerPedId()
-end
-
-local function vehicleEngine()
-    local vehicle = getCurrentVehicle()
-    if vehicle == 0 then return end
-    if not isDriver(vehicle) then
-        notify('You must be in the driver seat.', 'error')
-        return
-    end
-    requestControl(vehicle)
-    local running = GetIsVehicleEngineRunning(vehicle)
-    SetVehicleEngineOn(vehicle, not running, false, true)
-end
-
-local function vehicleLock()
-    local vehicle = getCurrentVehicle()
-    if vehicle == 0 then return end
-    if not isDriver(vehicle) then
-        notify('You must be in the driver seat.', 'error')
-        return
-    end
-    requestControl(vehicle)
-    local status = GetVehicleDoorLockStatus(vehicle)
-    if status == 1 or status == 0 then
-        SetVehicleDoorsLocked(vehicle, 2)
-        notify('Vehicle doors locked.', 'success')
+    if #JobMenu.items == 0 then
+        if jobIndex then
+            RemoveOption(jobIndex)
+            jobIndex = nil
+        end
     else
-        SetVehicleDoorsLocked(vehicle, 1)
-        notify('Vehicle doors unlocked.', 'success')
+        jobIndex = AddOption(JobMenu, jobIndex)
     end
 end
 
-local function vehicleDoor(door)
-    local vehicle = getCurrentVehicle()
-    if vehicle == 0 then return end
-    requestControl(vehicle)
-
-    door = tonumber(door)
-    if not door then return end
-    if GetVehicleDoorAngleRatio(vehicle, door) > 0.05 then
-        SetVehicleDoorShut(vehicle, door, false)
-    else
-        SetVehicleDoorOpen(vehicle, door, false, false)
-    end
-end
-
-local function vehicleWindow(window)
-    local vehicle = getCurrentVehicle()
-    if vehicle == 0 then return end
-    requestControl(vehicle)
-
-    window = tonumber(window)
-    if not window then return end
-
-    -- FiveM does not expose a reliable per-window "is down" getter, so we
-    -- remember the state locally for each vehicle network id.
-    local netId = NetworkGetNetworkIdFromEntity(vehicle)
-    windowStates[netId] = windowStates[netId] or {}
-    windowStates[netId][window] = not (windowStates[netId][window] or false)
-    local lowered = windowStates[netId][window]
-
-    if lowered then
-        RollDownWindow(vehicle, window)
-    else
-        RollUpWindow(vehicle, window)
-    end
-end
-
-local function vehicleSeat(seat)
-    local vehicle = getCurrentVehicle()
-    if vehicle == 0 then return end
-    seat = tonumber(seat)
-    if seat == nil then return end
-
-    local occupant = GetPedInVehicleSeat(vehicle, seat)
-    if occupant ~= 0 and occupant ~= PlayerPedId() then
-        notify('That seat is occupied.', 'error')
-        return
-    end
-
-    SetPedIntoVehicle(PlayerPedId(), vehicle, seat)
-end
-
-local function vehicleExtra(extra)
-    local vehicle = getCurrentVehicle()
-    if vehicle == 0 then return end
-    extra = tonumber(extra)
-    if not extra or not DoesExtraExist(vehicle, extra) then return end
-
-    requestControl(vehicle)
-    local enabled = IsVehicleExtraTurnedOn(vehicle, extra)
-    -- SET_VEHICLE_EXTRA third argument is "disable".
-    SetVehicleExtra(vehicle, extra, enabled)
-end
-
-local function executeInternalAction(action, args)
-    if action == 'emote:handsup' then
-        toggleHandsUp()
-    elseif action == 'emote:point' then
-        togglePointing()
-    elseif action == 'emote:crossarms' then
-        playSimpleAnim('amb@world_human_hang_out_street@male_c@idle_a', 'idle_b', 49)
-    elseif action == 'emote:salute' then
-        playSimpleAnim('anim@mp_player_intcelebrationmale@salute', 'salute', 49)
-    elseif action == 'emote:cancel' then
-        cancelAnimation()
-    elseif action == 'vehicle:engine' then
-        vehicleEngine()
-    elseif action == 'vehicle:lock' then
-        vehicleLock()
-    elseif action == 'vehicle:door' then
-        vehicleDoor(args and args.door)
-    elseif action == 'vehicle:window' then
-        vehicleWindow(args and args.window)
-    elseif action == 'vehicle:seat' then
-        vehicleSeat(args and args.seat)
-    elseif action == 'vehicle:extra' then
-        vehicleExtra(args and args.extra)
-    else
-        debugPrint('Unknown internal action:', action)
-    end
-end
-
-local function itemVisible(item)
-    if item.requiredResource and not resourceStarted(item.requiredResource) then
-        return false
-    end
-
-    if item.job then
-        local data = getPlayerData()
-        if not data.job or data.job.name ~= item.job then return false end
-    end
-
-    if item.onDuty ~= nil then
-        local data = getPlayerData()
-        if not data.job or data.job.onduty ~= item.onDuty then return false end
-    end
-
-    if item.vehicleOnly and getCurrentVehicle() == 0 then return false end
-    if item.driverOnly and not isDriver(getCurrentVehicle()) then return false end
-    if item.onFootOnly and getCurrentVehicle() ~= 0 then return false end
-
-    return true
-end
-
-local function buildVehicleMenu()
-    local vehicle = getCurrentVehicle()
-    if vehicle == 0 then return nil end
-
-    local menu = {
+local function SetupVehicleMenu()
+    local VehicleMenu = {
         id = 'vehicle',
         title = 'Vehicle',
-        description = 'Vehicle controls',
         icon = 'car',
         items = {}
     }
 
-    if Config.Vehicle.ShowEngine then
-        menu.items[#menu.items + 1] = {
-            id = 'vehicle_engine', title = 'Engine', icon = 'engine',
-            description = 'Start / stop engine', action = 'vehicle:engine', shouldClose = false
-        }
-    end
+    local ped = PlayerPedId()
+    local Vehicle = GetVehiclePedIsIn(ped) ~= 0 and GetVehiclePedIsIn(ped) or getNearestVeh()
+    if Vehicle ~= 0 then
+        VehicleMenu.items[#VehicleMenu.items + 1] = Config.VehicleDoors
+        if Config.EnableExtraMenu then VehicleMenu.items[#VehicleMenu.items + 1] = Config.VehicleExtras end
 
-    if Config.Vehicle.ShowLocks then
-        menu.items[#menu.items + 1] = {
-            id = 'vehicle_lock', title = 'Door Lock', icon = 'lock',
-            description = 'Lock / unlock vehicle', action = 'vehicle:lock', shouldClose = false
-        }
-    end
-
-    if Config.Vehicle.ShowDoors then
-        menu.items[#menu.items + 1] = {
-            id = 'vehicle_doors', title = 'Doors', icon = 'door', items = {
-                { id = 'door_fl', title = 'Front Left', icon = 'door', action = 'vehicle:door', args = { door = 0 }, shouldClose = false },
-                { id = 'door_fr', title = 'Front Right', icon = 'door', action = 'vehicle:door', args = { door = 1 }, shouldClose = false },
-                { id = 'door_rl', title = 'Rear Left', icon = 'door', action = 'vehicle:door', args = { door = 2 }, shouldClose = false },
-                { id = 'door_rr', title = 'Rear Right', icon = 'door', action = 'vehicle:door', args = { door = 3 }, shouldClose = false },
-                { id = 'door_hood', title = 'Hood', icon = 'engine', action = 'vehicle:door', args = { door = 4 }, shouldClose = false },
-                { id = 'door_trunk', title = 'Trunk', icon = 'box', action = 'vehicle:door', args = { door = 5 }, shouldClose = false }
+        if not IsVehicleOnAllWheels(Vehicle) then
+            VehicleMenu.items[#VehicleMenu.items + 1] = {
+                id = 'vehicle-flip',
+                title = 'Flip Vehicle',
+                icon = 'car-burst',
+                type = 'client',
+                event = 'qb-radialmenu:flipVehicle',
+                shouldClose = true
             }
-        }
-    end
+        end
 
-    if Config.Vehicle.ShowWindows then
-        menu.items[#menu.items + 1] = {
-            id = 'vehicle_windows', title = 'Windows', icon = 'window', items = {
-                { id = 'window_fl', title = 'Front Left', icon = 'window', action = 'vehicle:window', args = { window = 0 }, shouldClose = false },
-                { id = 'window_fr', title = 'Front Right', icon = 'window', action = 'vehicle:window', args = { window = 1 }, shouldClose = false },
-                { id = 'window_rl', title = 'Rear Left', icon = 'window', action = 'vehicle:window', args = { window = 2 }, shouldClose = false },
-                { id = 'window_rr', title = 'Rear Right', icon = 'window', action = 'vehicle:window', args = { window = 3 }, shouldClose = false }
+        if IsPedInAnyVehicle(ped) then
+            local seatIndex = #VehicleMenu.items + 1
+            VehicleMenu.items[seatIndex] = deepcopy(Config.VehicleSeats)
+
+            local seatTable = {
+                [1] = Lang:t('options.driver_seat'),
+                [2] = Lang:t('options.passenger_seat'),
+                [3] = Lang:t('options.rear_left_seat'),
+                [4] = Lang:t('options.rear_right_seat'),
             }
-        }
-    end
 
-    if Config.Vehicle.ShowSeats then
-        local seats = { id = 'vehicle_seats', title = 'Seats', icon = 'seat', items = {} }
-        local maxPassengers = GetVehicleMaxNumberOfPassengers(vehicle)
-        for seat = -1, maxPassengers - 1 do
-            local occupant = GetPedInVehicleSeat(vehicle, seat)
-            if occupant == 0 or occupant == PlayerPedId() then
-                local label = seat == -1 and 'Driver' or ('Seat %s'):format(seat + 2)
-                seats.items[#seats.items + 1] = {
-                    id = ('seat_%s'):format(seat),
-                    title = label,
-                    icon = 'seat',
-                    action = 'vehicle:seat',
-                    args = { seat = seat },
-                    shouldClose = true
+            local AmountOfSeats = GetVehicleModelNumberOfSeats(GetEntityModel(Vehicle))
+            for i = 1, AmountOfSeats do
+                local newIndex = #VehicleMenu.items[seatIndex].items + 1
+                VehicleMenu.items[seatIndex].items[newIndex] = {
+                    id = i - 2,
+                    title = seatTable[i] or Lang:t('options.other_seats'),
+                    icon = 'caret-up',
+                    type = 'client',
+                    event = 'qb-radialmenu:client:ChangeSeat',
+                    shouldClose = false,
                 }
             end
         end
-        if #seats.items > 0 then menu.items[#menu.items + 1] = seats end
     end
 
-    if Config.Vehicle.ShowExtras then
-        local extras = { id = 'vehicle_extras', title = 'Extras', icon = 'plus', items = {} }
-        for extra = 1, Config.Vehicle.MaxExtras do
-            if DoesExtraExist(vehicle, extra) then
-                local enabled = IsVehicleExtraTurnedOn(vehicle, extra)
-                extras.items[#extras.items + 1] = {
-                    id = ('extra_%s'):format(extra),
-                    title = ('Extra %s %s'):format(extra, enabled and 'ON' or 'OFF'),
-                    description = 'Toggle vehicle extra',
-                    icon = enabled and 'check' or 'plus',
-                    action = 'vehicle:extra',
-                    args = { extra = extra },
-                    shouldClose = false
-                }
+    if #VehicleMenu.items == 0 then
+        if vehicleIndex then
+            RemoveOption(vehicleIndex)
+            vehicleIndex = nil
+        end
+    else
+        vehicleIndex = AddOption(VehicleMenu, vehicleIndex)
+    end
+end
+
+local function SetupSubItems()
+    SetupJobMenu()
+    SetupVehicleMenu()
+end
+
+local function selectOption(t, t2)
+    for _, v in pairs(t) do
+        if v.items then
+            local found, hasAction, val = selectOption(v.items, t2)
+            if found then return true, hasAction, val end
+        else
+            if v.id == t2.id and ((v.event and v.event == t2.event) or v.action) and (not v.canOpen or v.canOpen()) then
+                return true, v.action, v
             end
         end
-        if #extras.items > 0 then menu.items[#menu.items + 1] = extras end
-    end
-
-    return menu
-end
-
-local function buildJobMenu()
-    local data = getPlayerData()
-    local job = data.job
-    if not job or not job.name then return nil end
-
-    local cfg = Config.JobInteractions[job.name]
-    if not cfg then return nil end
-    if cfg.requiredResource and not resourceStarted(cfg.requiredResource) then return nil end
-    if cfg.onDuty ~= nil and job.onduty ~= cfg.onDuty then return nil end
-
-    local menu = deepCopy(cfg)
-    menu.id = 'job_' .. job.name
-    menu.description = job.label or job.name
-    menu.requiredResource = nil
-    menu.onDuty = nil
-    return menu
-end
-
-local function getDynamicItems()
-    local items = {}
-    for _, option in pairs(dynamicOptions) do
-        items[#items + 1] = deepCopy(option)
-    end
-    table.sort(items, function(a, b)
-        return tostring(a.id or '') < tostring(b.id or '')
-    end)
-    return items
-end
-
-local function sanitizeItems(items, parentPath)
-    local output = {}
-
-    for index, item in ipairs(items or {}) do
-        if itemVisible(item) then
-            local path = ('%s.%s'):format(parentPath or 'root', item.id or index)
-            local uiItem = {
-                id = tostring(item.id or path),
-                title = item.title or 'Option',
-                description = item.description or '',
-                icon = item.icon or 'dot'
-            }
-
-            if item.items and #item.items > 0 then
-                local childItems = sanitizeItems(item.items, path)
-                if #childItems > 0 then
-                    uiItem.items = childItems
-                    output[#output + 1] = uiItem
-                end
-            else
-                actionMap[path] = item
-                uiItem.actionId = path
-                output[#output + 1] = uiItem
-            end
-        end
-    end
-
-    return output
-end
-
-local function buildMenu()
-    actionMap = {}
-
-    local items = deepCopy(Config.MenuItems)
-
-    local vehicleMenu = buildVehicleMenu()
-    if vehicleMenu and #vehicleMenu.items > 0 then
-        items[#items + 1] = vehicleMenu
-    end
-
-    local jobMenu = buildJobMenu()
-    if jobMenu and jobMenu.items and #jobMenu.items > 0 then
-        items[#items + 1] = jobMenu
-    end
-
-    local dynamic = getDynamicItems()
-    for _, item in ipairs(dynamic) do
-        items[#items + 1] = item
-    end
-
-    return sanitizeItems(items, 'root')
-end
-
-local function closeRadial()
-    if not radialOpen then return end
-    radialOpen = false
-    SetNuiFocus(false, false)
-    SetNuiFocusKeepInput(false)
-    SendNUIMessage({ action = 'close' })
-end
-
-local function openRadial()
-    if radialOpen or not canOpenRadial() then return end
-
-    local items = buildMenu()
-    if #items == 0 then return end
-
-    radialOpen = true
-    SetNuiFocus(true, true)
-    SetNuiFocusKeepInput(Config.UseWhileWalking == true)
-    SendNUIMessage({
-        action = 'open',
-        items = items,
-        theme = Config.Theme
-    })
-end
-
-local function toggleRadial()
-    if radialOpen then
-        closeRadial()
-    else
-        openRadial()
-    end
-end
-
-local function executeMenuItem(item)
-    if not item then return end
-
-    if item.action then
-        executeInternalAction(item.action, item.args)
-        return
-    end
-
-    if item.type == 'server' then
-        if item.args ~= nil then
-            TriggerServerEvent(item.event, item.args)
-        else
-            TriggerServerEvent(item.event)
-        end
-    elseif item.type == 'command' then
-        if item.args ~= nil then
-            ExecuteCommand(('%s %s'):format(item.event, tostring(item.args)))
-        else
-            ExecuteCommand(item.event)
-        end
-    else
-        if item.args ~= nil then
-            TriggerEvent(item.event, item.args)
-        else
-            TriggerEvent(item.event)
-        end
-    end
-end
-
-RegisterNUICallback('close', function(_, cb)
-    closeRadial()
-    cb({ ok = true })
-end)
-
-RegisterNUICallback('select', function(data, cb)
-    local actionId = data and data.actionId
-    local item = actionId and actionMap[actionId] or nil
-
-    if not item then
-        cb({ ok = false, error = 'invalid_action' })
-        return
-    end
-
-    executeMenuItem(item)
-
-    if item.shouldClose ~= false then
-        closeRadial()
-    else
-        -- Refresh dynamic labels such as extras after the action.
-        Wait(50)
-        local items = buildMenu()
-        SendNUIMessage({ action = 'refresh', items = items })
-    end
-
-    cb({ ok = true })
-end)
-
-RegisterCommand('+radialmenu', function()
-    if Config.Toggle then
-        toggleRadial()
-    else
-        openRadial()
-    end
-end, false)
-
-RegisterCommand('-radialmenu', function()
-    if not Config.Toggle then
-        closeRadial()
-    end
-end, false)
-
-RegisterKeyMapping('+radialmenu', 'Open GCR radial menu', 'keyboard', Config.Keybind)
-
-RegisterCommand('radialmenu', function()
-    toggleRadial()
-end, false)
-
-RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
-    PlayerData = QBCore.Functions.GetPlayerData()
-end)
-
-RegisterNetEvent('QBCore:Client:OnPlayerUnload', function()
-    PlayerData = {}
-    closeRadial()
-end)
-
-RegisterNetEvent('QBCore:Player:SetPlayerData', function(data)
-    PlayerData = data or {}
-end)
-
-RegisterNetEvent('QBCore:Client:OnJobUpdate', function(job)
-    PlayerData.job = job
-end)
-
-RegisterNetEvent('QBCore:Client:SetDuty', function(duty)
-    if PlayerData.job then PlayerData.job.onduty = duty end
-end)
-
--- Compatibility events for resources/configs that expect qb-radialmenu names.
-RegisterNetEvent('qb-radialmenu:client:setExtra', function(data)
-    local extra = type(data) == 'table' and (data.extra or data.id) or data
-    vehicleExtra(extra)
-end)
-
-RegisterNetEvent('qb-radialmenu:client:openDoor', function(data)
-    local door = type(data) == 'table' and (data.door or data.id) or data
-    vehicleDoor(door)
-end)
-
-RegisterNetEvent('qb-radialmenu:client:ChangeSeat', function(data)
-    local seat = type(data) == 'table' and (data.seat or data.id) or data
-    vehicleSeat(seat)
-end)
-
-RegisterNetEvent('qb-radialmenu:client:ToggleEngine', vehicleEngine)
-RegisterNetEvent('qb-radialmenu:client:ToggleVehicleLock', vehicleLock)
-
--- Standard dynamic option API used by several QBCore resources and
--- illenium-appearance when radial integration is enabled.
-local function addOption(data, id)
-    if type(data) ~= 'table' then return nil end
-
-    optionCounter = optionCounter + 1
-    local option = deepCopy(data)
-    local optionId = tostring(id or option.id or ('dynamic_%s'):format(optionCounter))
-    option.id = optionId
-    dynamicOptions[optionId] = option
-    debugPrint('Added dynamic option:', optionId)
-    return optionId
-end
-
-local function removeOption(id)
-    id = tostring(id or '')
-    if dynamicOptions[id] then
-        dynamicOptions[id] = nil
-        debugPrint('Removed dynamic option:', id)
-        return true
     end
     return false
 end
 
-exports('AddOption', addOption)
-exports('RemoveOption', removeOption)
-exports('GetRadialItems', function()
-    return deepCopy(dynamicOptions)
-end)
-exports('IsRadialOpen', function()
-    return radialOpen
+local function IsPoliceOrEMS()
+    return (PlayerData.job.name == 'police' or PlayerData.job.type == 'leo' or PlayerData.job.name == 'ambulance')
+end
+
+local function IsDowned()
+    return (PlayerData.metadata['isdead'] or PlayerData.metadata['inlaststand'])
+end
+
+local function SetupRadialMenu()
+    FinalMenuItems = {}
+    if (IsDowned() and IsPoliceOrEMS()) then
+        FinalMenuItems = {
+            [1] = {
+                id = 'emergencybutton2',
+                title = Lang:t('options.emergency_button'),
+                icon = 'circle-exclamation',
+                type = 'client',
+                event = 'police:client:SendPoliceEmergencyAlert',
+                shouldClose = true,
+            },
+        }
+    else
+        SetupSubItems()
+        FinalMenuItems = deepcopy(Config.MenuItems)
+        for _, v in pairs(DynamicMenuItems) do
+            FinalMenuItems[#FinalMenuItems + 1] = v
+        end
+    end
+end
+
+local function controlToggle(bool)
+    for i = 1, #controlsToToggle, 1 do
+        if bool then
+            exports['qb-smallresources']:addDisableControls(controlsToToggle[i])
+        else
+            exports['qb-smallresources']:removeDisableControls(controlsToToggle[i])
+        end
+    end
+end
+
+
+local function setRadialState(bool, sendMessage, delay)
+    -- Menuitems have to be added only once
+    if Config.UseWhilstWalking then
+        if bool then
+            TriggerEvent('qb-radialmenu:client:onRadialmenuOpen')
+            SetupRadialMenu()
+            PlaySoundFrontend(-1, 'NAV', 'HUD_AMMO_SHOP_SOUNDSET', 1)
+            controlToggle(true)
+        else
+            TriggerEvent('qb-radialmenu:client:onRadialmenuClose')
+            controlToggle(false)
+        end
+        SetNuiFocus(bool, bool)
+        SetNuiFocusKeepInput(bool, true)
+    else
+        if bool then
+            TriggerEvent('qb-radialmenu:client:onRadialmenuOpen')
+            SetupRadialMenu()
+        else
+            TriggerEvent('qb-radialmenu:client:onRadialmenuClose')
+        end
+        SetNuiFocus(bool, bool)
+    end
+
+    if sendMessage then
+        SendNUIMessage({
+            action = 'ui',
+            radial = bool,
+            items = FinalMenuItems,
+            toggle = Config.Toggle,
+            keybind = Config.Keybind
+        })
+    end
+    if delay then Wait(500) end
+    inRadialMenu = bool
+end
+
+-- Command
+
+RegisterCommand('radialmenu', function()
+    if ((IsDowned() and IsPoliceOrEMS()) or not IsDowned()) and not PlayerData.metadata['ishandcuffed'] and not IsPauseMenuActive() and not inRadialMenu then
+        setRadialState(true, true)
+        SetCursorLocation(0.5, 0.5)
+    end
 end)
 
-CreateThread(function()
-    Wait(1000)
+RegisterKeyMapping('radialmenu', Lang:t('general.command_description'), 'keyboard', Config.Keybind)
+
+-- Events
+
+-- Sets the metadata when the player spawns
+RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
     PlayerData = QBCore.Functions.GetPlayerData()
 end)
 
-CreateThread(function()
-    while true do
-        if radialOpen then
-            -- Keep movement available when configured, but stop accidental gameplay
-            -- actions while the mouse is being used on the NUI.
-            DisableControlAction(0, 24, true)  -- attack
-            DisableControlAction(0, 25, true)  -- aim
-            DisableControlAction(0, 37, true)  -- weapon wheel
-            DisableControlAction(0, 44, true)  -- cover
-            DisableControlAction(0, 140, true) -- melee light
-            DisableControlAction(0, 141, true) -- melee heavy
-            DisableControlAction(0, 142, true) -- melee alternate
-            DisablePlayerFiring(PlayerId(), true)
-            Wait(0)
+-- Sets the playerdata to an empty table when the player has quit or did /logout
+RegisterNetEvent('QBCore:Client:OnPlayerUnload', function()
+    PlayerData = {}
+end)
+
+-- This will update all the PlayerData that doesn't get updated with a specific event other than this like the metadata
+RegisterNetEvent('QBCore:Client:OnPlayerUpdated', function(key, val)
+    if key ~= 'all' then return end
+    PlayerData = val
+end)
+
+RegisterNetEvent('qb-radialmenu:client:noPlayers', function()
+    QBCore.Functions.Notify(Lang:t('error.no_people_nearby'), 'error', 2500)
+end)
+
+RegisterNetEvent('qb-radialmenu:client:openDoor', function(data)
+    local string = data.id
+    local replace = string:gsub('door', '')
+    local door = tonumber(replace)
+    local ped = PlayerPedId()
+    local closestVehicle = GetVehiclePedIsIn(ped) ~= 0 and GetVehiclePedIsIn(ped) or getNearestVeh()
+    if closestVehicle ~= 0 then
+        if closestVehicle ~= GetVehiclePedIsIn(ped) then
+            local plate = QBCore.Functions.GetPlate(closestVehicle)
+            if GetVehicleDoorAngleRatio(closestVehicle, door) > 0.0 then
+                if not IsVehicleSeatFree(closestVehicle, -1) then
+                    TriggerServerEvent('qb-radialmenu:trunk:server:Door', false, plate, door)
+                else
+                    SetVehicleDoorShut(closestVehicle, door, false)
+                end
+            else
+                if not IsVehicleSeatFree(closestVehicle, -1) then
+                    TriggerServerEvent('qb-radialmenu:trunk:server:Door', true, plate, door)
+                else
+                    SetVehicleDoorOpen(closestVehicle, door, false, false)
+                end
+            end
         else
-            Wait(250)
+            if GetVehicleDoorAngleRatio(closestVehicle, door) > 0.0 then
+                SetVehicleDoorShut(closestVehicle, door, false)
+            else
+                SetVehicleDoorOpen(closestVehicle, door, false, false)
+            end
+        end
+    else
+        QBCore.Functions.Notify(Lang:t('error.no_vehicle_found'), 'error', 2500)
+    end
+end)
+
+RegisterNetEvent('qb-radialmenu:client:setExtra', function(data)
+    local string = data.id
+    local replace = string:gsub('extra', '')
+    local extra = tonumber(replace)
+    local ped = PlayerPedId()
+    local veh = GetVehiclePedIsIn(ped)
+    if veh ~= nil then
+        if GetPedInVehicleSeat(veh, -1) == ped then
+            SetVehicleAutoRepairDisabled(veh, true) -- Forces Auto Repair off when Toggling Extra [GTA 5 Niche Issue]
+            if DoesExtraExist(veh, extra) then
+                if IsVehicleExtraTurnedOn(veh, extra) then
+                    SetVehicleExtra(veh, extra, 1)
+                    QBCore.Functions.Notify(Lang:t('error.extra_deactivated', { extra = extra }), 'error', 2500)
+                else
+                    SetVehicleExtra(veh, extra, 0)
+                    QBCore.Functions.Notify(Lang:t('success.extra_activated', { extra = extra }), 'success', 2500)
+                end
+            else
+                QBCore.Functions.Notify(Lang:t('error.extra_not_present', { extra = extra }), 'error', 2500)
+            end
+        else
+            QBCore.Functions.Notify(Lang:t('error.not_driver'), 'error', 2500)
         end
     end
 end)
 
-AddEventHandler('onResourceStop', function(resource)
-    if resource == GetCurrentResourceName() then
-        SetNuiFocus(false, false)
-        SetNuiFocusKeepInput(false)
+RegisterNetEvent('qb-radialmenu:trunk:client:Door', function(plate, door, open)
+    local veh = GetVehiclePedIsIn(PlayerPedId())
+    if veh ~= 0 then
+        local pl = QBCore.Functions.GetPlate(veh)
+        if pl == plate then
+            if open then
+                SetVehicleDoorOpen(veh, door, false, false)
+            else
+                SetVehicleDoorShut(veh, door, false)
+            end
+        end
     end
 end)
+
+RegisterNetEvent('qb-radialmenu:client:ChangeSeat', function(data)
+    local Veh = GetVehiclePedIsIn(PlayerPedId())
+    local IsSeatFree = IsVehicleSeatFree(Veh, data.id)
+    local speed = GetEntitySpeed(Veh)
+    local HasHarnass = exports['qb-smallresources']:HasHarness()
+    if not HasHarnass then
+        local kmh = speed * 3.6
+        if IsSeatFree then
+            if kmh <= 100.0 then
+                SetPedIntoVehicle(PlayerPedId(), Veh, data.id)
+                QBCore.Functions.Notify(Lang:t('info.switched_seats', { seat = data.title }))
+            else
+                QBCore.Functions.Notify(Lang:t('error.vehicle_driving_fast'), 'error')
+            end
+        else
+            QBCore.Functions.Notify(Lang:t('error.seat_occupied'), 'error')
+        end
+    else
+        QBCore.Functions.Notify(Lang:t('error.race_harness_on'), 'error')
+    end
+end)
+
+RegisterNetEvent('qb-radialmenu:flipVehicle', function()
+    QBCore.Functions.Progressbar('pick_grape', Lang:t('progress.flipping_car'), Config.Fliptime, false, true, {
+        disableMovement = true,
+        disableCarMovement = true,
+        disableMouse = false,
+        disableCombat = true,
+    }, {
+        animDict = 'mini@repair',
+        anim = 'fixing_a_ped',
+        flags = 1,
+    }, {}, {}, function() -- Done
+        local vehicle = getNearestVeh()
+        SetVehicleOnGroundProperly(vehicle)
+        StopAnimTask(PlayerPedId(), 'mini@repair', 'fixing_a_ped', 1.0)
+    end, function() -- Cancel
+        QBCore.Functions.Notify(Lang:t('task.cancel_task'), 'error')
+        StopAnimTask(PlayerPedId(), 'mini@repair', 'fixing_a_ped', 1.0)
+    end)
+end)
+
+AddEventHandler('onClientResourceStop', function(resource)
+    for k, v in pairs(DynamicMenuItems) do
+        if v.res == resource then
+            DynamicMenuItems[k] = nil
+        end
+    end
+end)
+
+-- NUI Callbacks
+
+RegisterNUICallback('closeRadial', function(data, cb)
+    setRadialState(false, false, data.delay)
+    cb('ok')
+end)
+
+RegisterNUICallback('selectItem', function(inData, cb)
+    local itemData = inData.itemData
+    local found, action, data = selectOption(FinalMenuItems, itemData)
+    if data and found then
+        if action then
+            action(data)
+        elseif data.type == 'client' then
+            TriggerEvent(data.event, data)
+        elseif data.type == 'server' then
+            TriggerServerEvent(data.event, data)
+        elseif data.type == 'command' then
+            ExecuteCommand(data.event)
+        elseif data.type == 'qbcommand' then
+            TriggerServerEvent('QBCore:CallCommand', data.event, data)
+        end
+    end
+    cb('ok')
+end)
+
+exports('AddOption', AddOption)
+exports('RemoveOption', RemoveOption)
