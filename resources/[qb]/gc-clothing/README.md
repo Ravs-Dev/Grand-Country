@@ -1,63 +1,21 @@
-# illenium-appearance
+# fivem-appearance
 
-A replacement for clothing resources for various frameworks
+A flexible player customization script for FiveM.
 
-<div align='center'><h1><a href='https://docs.illenium.dev/free-resources/illenium-appearance/installation/'>Documentation</a></h3></div>
-<br>
+This resource was designed to manage all GTA V player/ped customization in only one place, with an opinionated way to handle the data.
 
-<img src="https://i.imgur.com/ltLSMmh.png" alt="illenium-appearance with Tattoos" />
+## Preview
 
-Discord: https://discord.illenium.dev
+![Customization Preview](https://imgur.com/VgNAvgC.png "Customization Preview")
+![Customization Preview](https://i.imgur.com/wzY7XNu.png "Customization Preview")
+![Customization Preview](https://imgur.com/B0m6g6q.png "Customization Preview")
 
-**Note:** Do **NOT** use the `main` branch as it will most likely be broken for you. NO SUPPORT WILL BE PROVIDED IF YOU USE IT. Only use the [latest release](https://github.com/iLLeniumStudios/illenium-appearance/releases/latest)
+## Docs
 
-## Supported Frameworks
+[![Fivepunch docs](https://i.imgur.com/krdL9bx.png)](https://docs.fivepunch.io/resources/fivem-appearance)
 
-- qb-core
-- ESX
-- ox_core
+## License
 
-## Dependencies
+This project is under MIT license. See the file [LICENSE](LICENSE) for more details.
 
-- [qb-core](https://github.com/qbcore-framework/qb-core) (Latest) (Only for qb-core based servers)
-- [es_extended](https://github.com/esx-framework/esx-legacy) (Latest) (Only for ESX based servers)
-- [ox_core](https://github.com/overextended/ox_core) (experimental) (Only for ox_core based servers)
-- [gc_lib](https://github.com/overextended/gc_lib)
-- [qb-target](https://github.com/BerkieBb/qb-target) (Optional) (Only for qb-core based servers)
 
-## Features
-
-- Everything from standalone fivem-appearance
-- UI from OX Lib
-- Player outfits
-- Rank based Clothing Rooms for Jobs / Gangs
-- Job / Gang locked Stores
-- Tattoo's Support
-- Hair Textures
-- Polyzone Support
-- Ped Menu command (/pedmenu) (Configurable)
-- Reload Skin command (/reloadskin)
-- Improved code quality
-- Plastic Surgeons
-- qb-target Support
-- Skin migration support (qb-clothing / old fivem-appearance / esx_skin)
-- Player specific outfit locations (Restricted via CitizenID)
-- Makeup Secondary Color
-- Blacklist / Limit Components & Props to certain Jobs / Gangs / CitizenIDs / ACEs (Allows you to have VIP clothing on your Server)
-- Blacklist / Limit Peds to certain Jobs / Gangs / CitizenIDs / ACEs
-- Persist Job / Gang Clothes on reconnects / logout
-- Themes Support (Default & QBCore provided out of the box)
-- Disable Components / Props Entirely (Clothing as items support)
-
-## New Preview (with Tattoos)
-
-https://streamable.com/qev2h7
-
-## Documentation
-
-Read the docs here: https://docs.illenium.dev
-
-## Credits
-- Original Script: https://github.com/pedr0fontoura/fivem-appearance
-- Tattoo's Support: https://github.com/franfdezmorales/fivem-appearance
-- Last Maintained Fork for QB: https://github.com/mirrox1337/aj-fivem-appearance
