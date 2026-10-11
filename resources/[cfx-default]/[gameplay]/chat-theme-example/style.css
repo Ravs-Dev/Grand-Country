@@ -1,128 +1,103 @@
-* {
-    font-family: inherit;
+/* GCR Modern Chat - CSS override for classic FiveM NUI chat.
+   Append to the stylesheet loaded by your chat UI. */
+:root { 
+    --gcr-orange: #f59336; --gcr-panel: rgba(18, 25, 35, .82); --gcr-line: rgba(245, 147, 54, .45); 
+}
+
+html, body { 
+    background: transparent !important; 
 }
 
 .chat-window {
-    --size: calc(((2.7vh * 1.2)) * 6);
-
-    position: absolute;
-    right: calc(2.77vh);
-    top: calc(50% - (var(--size) / 2));
-    height: var(--size) !important;
-
-    background: inherit !important;
-
-    text-align: right;
-
-    left: auto;
-
-    user-select: none;
-}
-
-.msg {
-    font-family: sans-serif;
-    color: #fff;
-    font-size: calc(1.8vh); /* 13px in 720p, calc'd by width */
-    filter: url(#svgDropShadowFilter);
-
-    line-height: calc(2.7vh * 1.2);
-
-    margin-bottom: 0;
+  position: absolute !important;
+  top: 2.3% !important;
+  left: 1.2% !important;
+  width: 32% !important;
+  max-width: 560px !important;
+  height: 22% !important;
+  background: transparent !important;
+  overflow: hidden !important;
 }
 
 .chat-messages {
-    margin: 0;
-    height: 100%;
+  height: 100% !important;
+  overflow-y: auto !important;
+  padding: 10px 12px !important;
+  background: linear-gradient(130deg, rgba(17,24,33,.82), rgba(19,26,35,.55)) !important;
+  border: 1px solid rgba(245,147,54,.20) !important;
+  border-left: 3px solid var(--gcr-orange) !important;
+  border-radius: 12px !important;
+  box-sizing: border-box !important;
+  scrollbar-width: none;
 }
 
-.msg > span > span > b {
-    font-family: sans-serif;
-    vertical-align: baseline;
-    padding-right: 11px;
-
-    line-height: 1;
-
-    font-size: calc(1.8vh);
+.chat-messages::-webkit-scrollbar { 
+    display: none; 
 }
 
-.msg > span > span > span {
-    vertical-align: baseline;
-}
-
-.msg i:first-of-type {
-    font-style: normal;
-    color: #c0c0c0;
+.msg {
+  margin: 3px 0 !important;
+  padding: 3px 6px !important;
+  font-family: Arial, sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+  color: #eef2f6 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,.45) !important;
+  overflow-wrap: anywhere;
 }
 
 .chat-input {
-    position: absolute;
-    right: calc(2.77vh);
-    bottom: calc(2.77vh);
-
-    background: inherit !important;
-
-    text-align: right;
-
-    top: auto;
-    left: auto;
-
-    height: auto;
-
-    font-family: Font2, sans-serif;
+  position: absolute !important;
+  top: 25.5% !important;
+  left: 1.2% !important;
+  width: 32% !important;
+  max-width: 560px !important;
+  background: transparent !important;
 }
 
-.chat-input > div {
-    background-color: rgba(0, 0, 0, .6) !important;
-    border: calc(0.28vh / 2) solid rgba(180, 180, 180, .6);
-    outline: calc(0.28vh / 2) solid rgba(0, 0, 0, .8); /* to replace margin-background */
-    padding: calc(0.28vh / 2);
+.chat-input > div.input {
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 8px 12px !important;
+  background: var(--gcr-panel) !important;
+  border: 1px solid var(--gcr-line) !important;
+  border-left: 3px solid var(--gcr-orange) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 5px 16px rgba(0,0,0,.25) !important;
 }
 
-.chat-input .prefix {
-    margin: 0;
-    margin-left: 0.7%;
-    margin-top: -0.1%;
-    line-height: 2.8vh;
+.chat-input .prefix { 
+    color: var(--gcr-orange) !important; font-weight: 700 !important; 
 }
 
-.chat-input .prefix.any {
-    opacity: 0.8;
+.chat-input textarea, .chat-input input {
+  background: transparent !important;
+  color: #fff !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  font-size: 14px !important;
+  font-family: Arial, sans-serif !important;
 }
 
-.chat-input .prefix.any:before {
-    content: '[';
-}
-
-.chat-input .prefix.any:after {
-    content: ']';
-}
-
-.chat-input > div + div {
-    position: absolute;
-    bottom: calc(1.65vh + 0.28vh + 0.28vh + 0.28vh + (0.28vh / 2));
-    width: 99.6%;
-
-    text-align: left;
+.chat-input textarea::placeholder, .chat-input input::placeholder { 
+    color: #aab4c2 !important; 
 }
 
 .suggestions {
-    border: calc(0.28vh / 2) solid rgba(180, 180, 180, .6);
-    background: transparent;
+  background: rgba(19,26,35,.94) !important;
+  border: 1px solid var(--gcr-line) !important;
+  border-radius: 9px !important;
+  padding: 5px 8px !important;
+  color: #edf2f7 !important;
 }
 
-textarea {
-    background: transparent;
-    padding: 0.5vh;
+.suggestion { 
+    padding: 4px 6px !important; 
 }
 
-@media screen and (min-aspect-ratio: 21/9) {
-	.chat-window, .chat-input {
-		right: calc(12.8vw);
-	}
-}
-
-@media screen and (min-aspect-ratio: 32/9) {
-	.chat-window, .chat-input {
-		right: calc(25vw);
-	}
+@media (max-width: 900px) {
+  .chat-window, .chat-input { width: 44% !important; }
+  .msg { font-size: 12px !important; }
 }

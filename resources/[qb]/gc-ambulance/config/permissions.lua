@@ -1,1 +1,0 @@
---- Rank permissions live in config/ranks.lua (Config.RankPermissions).

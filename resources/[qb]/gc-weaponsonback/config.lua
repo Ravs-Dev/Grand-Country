@@ -9,9 +9,17 @@ Config.Debug = false
 Config.Slots = {
     back = { bone = 24816, pos = vec3(0.13, -0.17, 0.03), rot = vec3(0.0, 170.0, 0.0) },
     back2 = { bone = 24816, pos = vec3(-0.13, -0.17, 0.03), rot = vec3(0.0, 190.0, 0.0) },
-    hip = { bone = 11816, pos = vec3(0.12, 0.04, 0.04), rot = vec3(-75.0, 0.0, 5.0) },
-    hip2 = { bone = 11816, pos = vec3(-0.12, 0.04, 0.04), rot = vec3(-75.0, 0.0, -5.0) },
+    hip = { bone = 11816, pos = vec3(0.05, 0.0, 0.12), rot = vec3(-75.0, 0.0, 5.0) },
+    hip2 = { bone = 11816, pos = vec3(-0.05, 0.0, 0.12), rot = vec3(-75.0, 0.0, -5.0) },
 }
+
+        x = 0.05
+        y = 0.0
+        z = 0.12
+        x_rotation = -90.0
+        y_rotation = 0.0
+        z_rotation = 0.0
+
 
 -- Priority follows inventory order. The first eligible item gets its preferred slot;
 -- the second long item may use back2. Two visual props never occupy the same slot.

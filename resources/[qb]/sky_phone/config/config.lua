@@ -39,11 +39,11 @@ Config.PhoneConfigurator = {
 -- player membership. Missing/empty lists deny player access. Restart after edits.
 -- Keep the permission keys below unchanged even if you rename a command in Part 2.
 Config.CommandPermissions = {
-    phonepanel = { "god", "superadmin", "admin" },
-    phonetestdata = { "god", "superadmin", "admin" },
-    fliptokverify = { "god", "superadmin", "admin" },
-    picstagramverify = { "god", "superadmin", "admin" },
-    picstagramadmin = { "god", "superadmin", "admin" },
+    phonepanel = { "group.admin" },
+    phonetestdata = { "group.admin" },
+    fliptokverify = { "group.admin" },
+    picstagramverify = { "group.admin" },
+    picstagramadmin = { "group.admin" },
 }
 
 -- Local custom sounds remain file-based even when the Phone Configurator is
