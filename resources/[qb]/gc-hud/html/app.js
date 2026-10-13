@@ -172,13 +172,12 @@ function updateVehicleHud(vehicle) {
 }
 
 window.addEventListener('message', (event) => {
+    const message = event.data || {};
 
     if (message.action === 'hudVisibility') {
         document.body.style.display = message.show ? '' : 'none';
         return;
     }
-
-    const message = event.data || {};
 
     if (message.action === 'visible') {
         hud.classList.toggle('hidden', !message.visible);

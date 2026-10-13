@@ -519,23 +519,19 @@ RegisterNUICallback('select', function(data, cb)
 end)
 
 RegisterNUICallback('create', function(data, cb)
-
-    if uiOpen and not busy then
-
-        busy = true
-
-        DoScreenFadeOut(350)
-
-        Wait(380)
-
-        closeMenu(false)
-
-        TriggerServerEvent('gcr-multicharacter:server:create', data)
-
+    if not uiOpen or busy or type(data) ~= 'table' then
+        cb({ok = false})
+        return
     end
 
+    busy = true
+    TriggerServerEvent('gcr-multicharacter:server:create', data)
     cb({ok = true})
+end)
 
+RegisterNetEvent('gcr-multicharacter:client:createFailed', function()
+    busy = false
+    SendNUIMessage({ action = 'unlockCreate' })
 end)
 
 RegisterNUICallback('delete', function(data, cb)

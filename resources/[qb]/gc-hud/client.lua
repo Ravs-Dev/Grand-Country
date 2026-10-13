@@ -414,7 +414,10 @@ CreateThread(function()
             if lastHealth == nil then lastHealth = currentHealth end
             if lastArmor == nil then lastArmor = currentArmor end
 
-            local tookDamage = currentHealth < lastHealth or currentArmor < lastArmor
+            local healthLoss = math.max((lastHealth or currentHealth) - currentHealth, 0)
+            local armorLoss = math.max((lastArmor or currentArmor) - currentArmor, 0)
+            local minDamage = tonumber(Config.InjuryMinDamage) or 5
+            local tookDamage = healthLoss >= minDamage or armorLoss >= minDamage
 
             if tookDamage and not IsEntityDead(ped) then
                 local success, bone = GetPedLastDamageBone(ped)

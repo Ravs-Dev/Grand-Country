@@ -24,6 +24,11 @@ end
 local function notify(src, message, level)
     TriggerClientEvent('QBCore:Notify', src, message, level or 'error')
 end
+
+local function createError(src, message)
+    notify(src, message)
+    TriggerClientEvent('gcr-multicharacter:client:createFailed', src)
+end
 local function sendChars(src)
     local lic = licenseOf(src)
     if not lic then return end
@@ -46,11 +51,25 @@ QBCore.Functions.CreateCallback('gcr-multicharacter:server:getCharacters', funct
     end
     cb(rows, maxSlots(src), Config.EnableDeleteButton)
 end)
+
 QBCore.Functions.CreateCallback('gcr-multicharacter:server:getSkin', function(src, cb, citizenid)
-    if not owns(src, citizenid) then cb(nil, nil); return end
-    local rows = MySQL.query.await('SELECT model,skin FROM playerskins WHERE citizenid = ? ORDER BY active DESC, id DESC LIMIT 1', {citizenid}) or {}
-    cb(rows[1] and rows[1].model or nil, rows[1] and rows[1].skin or nil)
+    if type(citizenid) ~= 'string' or citizenid == '' then
+        cb(nil, nil)
+        return
+    end
+
+    local result = MySQL.query.await(
+        'SELECT model, skin FROM playerskins WHERE citizenid = ? AND active = ? ORDER BY id DESC LIMIT 1',
+        {citizenid, 1}
+    )
+
+    if result and result[1] then
+        cb(result[1].model, result[1].skin)
+    else
+        cb(nil, nil)
+    end
 end)
+
 AddEventHandler('QBCore:Server:PlayerLoaded', function(Player)
     if Player and Player.PlayerData then preloaded[Player.PlayerData.source] = true end
 end)
@@ -120,6 +139,7 @@ RegisterNetEvent('gcr-multicharacter:server:select', function(citizenid)
     end
     pending[src] = nil
 end)
+
 RegisterNetEvent('gcr-multicharacter:server:create', function(data)
     local src = source
     if pending[src] or type(data) ~= 'table' then return end
@@ -131,18 +151,18 @@ RegisterNetEvent('gcr-multicharacter:server:create', function(data)
     if not firstname:match('^[%a%s%-]+$') or not lastname:match('^[%a%s%-]+$') or
        #firstname < 2 or #lastname < 2 or not birthdate:match('^%d%d%d%d%-%d%d%-%d%d$') or
        #nationality < 2 or (gender ~= 0 and gender ~= 1) then
-        notify(src, 'Check character information.'); return
+        createError(src, 'Check character information.'); return
     end
     local id = licenseOf(src)
-    if not id then return end
+    if not id then createError(src, 'Could not read your player license.'); return end
     local slots = maxSlots(src)
     local rows = MySQL.query.await('SELECT cid FROM players WHERE license = ?', {id}) or {}
-    if #rows >= slots then notify(src, 'All character slots are occupied.'); return end
+    if #rows >= slots then createError(src, 'All character slots are occupied.'); return end
     local used = {}
     for _, r in ipairs(rows) do used[tonumber(r.cid)] = true end
     local slot
     for i=1, slots do if not used[i] then slot = i; break end end
-    if not slot then return end
+    if not slot then createError(src, 'No free character slot was found.'); return end
     pending[src] = true
     local newData = {cid = slot, charinfo = {firstname = firstname, lastname = lastname,
         birthdate = birthdate, nationality = nationality, gender = gender}}
@@ -151,19 +171,22 @@ RegisterNetEvent('gcr-multicharacter:server:create', function(data)
         local p = QBCore.Functions.GetPlayer(src)
         launchSpawn(src, p and p.PlayerData or newData, true)
     else
-        notify(src, 'Could not create character.'); sendChars(src)
+        createError(src, 'Could not create character.'); sendChars(src)
     end
     pending[src] = nil
 end)
+
 RegisterNetEvent('gcr-multicharacter:server:delete', function(citizenid)
     local src = source
     if pending[src] or not Config.EnableDeleteButton or not owns(src, citizenid) then return end
     QBCore.Player.DeleteCharacter(src, citizenid)
     sendChars(src)
 end)
+
 RegisterNetEvent('gcr-multicharacter:server:disconnect', function()
     DropPlayer(source, 'Disconnected from character menu')
 end)
+
 QBCore.Commands.Add('logout', 'Return to character selection', {}, false, function(src)
     QBCore.Player.Logout(src)
     TriggerClientEvent('qb-multicharacter:client:chooseChar', src)

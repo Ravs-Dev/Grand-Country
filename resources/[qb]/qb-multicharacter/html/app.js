@@ -56,6 +56,10 @@ window.addEventListener('message',event=>{
     if(!characters.some(c=>c.citizenid===selected))selected=characters[0]?.citizenid||null;
     render();
   }
+  if(d.action==='unlockCreate'){
+    locked=false;
+    showToast('Character could not be created. Check the information and try again.');
+  }
   if(d.action==='photo'){
     photoMode=!!d.enabled;
     $('.rightPanel').classList.toggle('hidden',photoMode);

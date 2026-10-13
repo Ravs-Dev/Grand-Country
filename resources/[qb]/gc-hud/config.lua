@@ -16,15 +16,16 @@ Config.SpeedUnit = 'KM/H' -- 'KM/H' or 'MPH'
 -- Body injury detector.
 Config.EnableBodyInjury = true
 Config.SaveInjuriesToMetadata = true
-Config.PersistInjuries = true
-Config.InjuryDisplayTime = 120000
+Config.PersistInjuries = false
+Config.InjuryDisplayTime = 45000
+Config.InjuryMinDamage = 5
 Config.ClearInjuriesOnRevive = true
 
 -- QBCore needs tick.
 -- IMPORTANT: this resource replaces the original qb-hud loop that normally calls
 -- QBCore:UpdatePlayer. Without this, hunger/thirst can appear stuck.
-Config.EnableNeedsTick = true
-Config.NeedsTickMs = 45000 -- 45 seconds. Use 60000 if you want slower hunger/thirst.
+Config.EnableNeedsTick = false
+Config.NeedsTickMs = 300000 -- Kept only as a fallback; qb-core already updates needs every 5 minutes.
 
 -- Damage watchdog.
 -- Keeps normal RP players damageable so falls/vehicle impacts are not ignored if

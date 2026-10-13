@@ -48,7 +48,21 @@ RegisterNetEvent('qb-houses:client:setHouseConfig', function(houseConfig)
     Houses = houseConfig
 end)
 
+local pendingFirstAppearance = false
+
+local function openFirstAppearanceIfNeeded()
+    if not pendingFirstAppearance then return end
+    pendingFirstAppearance = false
+
+    if GetResourceState('illenium-appearance') == 'started' then
+        TriggerEvent('qb-clothes:client:CreateFirstCharacter')
+    elseif GetResourceState('qb-clothing') == 'started' then
+        TriggerEvent('qb-clothes:client:CreateFirstCharacter')
+    end
+end
+
 RegisterNetEvent('qb-spawn:client:setupSpawns', function(cData, new, apps)
+    pendingFirstAppearance = new == true
     if not new then
         QBCore.Functions.TriggerCallback('qb-spawn:server:getOwnedHouses', function(houses)
             local myHouses = {}
@@ -142,6 +156,8 @@ RegisterNUICallback('chooseAppa', function(data, cb)
     SetCamActive(cam2, false)
     DestroyCam(cam2, true)
     SetEntityVisible(ped, true)
+    Wait(500)
+    openFirstAppearanceIfNeeded()
     cb('ok')
 end)
 
@@ -161,6 +177,7 @@ local function PostSpawnPlayer(ped)
     SetEntityVisible(PlayerPedId(), true)
     Wait(500)
     DoScreenFadeIn(250)
+    openFirstAppearanceIfNeeded()
 end
 
 RegisterNUICallback('spawnplayer', function(data, cb)
