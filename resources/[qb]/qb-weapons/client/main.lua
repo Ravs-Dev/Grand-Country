@@ -105,13 +105,13 @@ RegisterNetEvent('qb-weapons:client:AddAmmo', function(ammoType, amount, itemDat
             return
         end
         -- Server confirms owned ammo and matches the equipped weapon before applying it.
-        TriggerServerEvent('gcrp-ammo:server:requestReload', itemData.slot, equipped.slot, equipped.name, ammoType:upper(), ammoToAdd)
+        TriggerServerEvent('lcrp-ammo:server:requestReload', itemData.slot, equipped.slot, equipped.name, ammoType:upper(), ammoToAdd)
     end, function()
         QBCore.Functions.Notify(Lang:t('error.canceled'), 'error')
     end)
 end)
 
-RegisterNetEvent('gcrp-ammo:client:applyReload', function(weaponName, weaponSlot, rounds)
+RegisterNetEvent('lcrp-ammo:client:applyReload', function(weaponName, weaponSlot, rounds)
     local ped = PlayerPedId()
     local weapon = GetSelectedPedWeapon(ped)
     if type(weaponName) ~= 'string' or joaat(weaponName) ~= weapon or

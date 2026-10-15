@@ -208,16 +208,16 @@ QBCore.Shared.Items = {
     -- ITEMS
 
     -- Ammo ITEMS
-    pistol_ammo                  = { name = 'pistol_ammo', label = 'Pistol ammo', weight = 200, type = 'item', image = 'pistol_ammo.png', unique = false, useable = true, shouldClose = true, description = 'Ammo for Pistols' },
-    rifle_ammo                   = { name = 'rifle_ammo', label = 'Rifle ammo', weight = 1000, type = 'item', image = 'rifle_ammo.png', unique = false, useable = true, shouldClose = true, description = 'Ammo for Rifles' },
-    smg_ammo                     = { name = 'smg_ammo', label = 'SMG ammo', weight = 500, type = 'item', image = 'smg_ammo.png', unique = false, useable = true, shouldClose = true, description = 'Ammo for Sub Machine Guns' },
-    shotgun_ammo                 = { name = 'shotgun_ammo', label = 'Shotgun ammo', weight = 500, type = 'item', image = 'shotgun_ammo.png', unique = false, useable = true, shouldClose = true, description = 'Ammo for Shotguns' },
-    mg_ammo                      = { name = 'mg_ammo', label = 'MG ammo', weight = 1000, type = 'item', image = 'mg_ammo.png', unique = false, useable = true, shouldClose = true, description = 'Ammo for Machine Guns' },
-    snp_ammo                     = { name = 'snp_ammo', label = 'Sniper ammo', weight = 1000, type = 'item', image = 'rifle_ammo.png', unique = false, useable = true, shouldClose = true, description = 'Ammo for Sniper Rifles' },
+    pistol_ammo                  = { name = 'pistol_ammo', label = 'Pistol Ammo', weight = 200, type = 'item', image = 'pistol_ammo.png', unique = false, useable = true, shouldClose = true, description = 'Ammo for Pistols' },
+    rifle_ammo                   = { name = 'rifle_ammo', label = 'Rifle Ammo', weight = 1000, type = 'item', image = 'rifle_ammo.png', unique = false, useable = true, shouldClose = true, description = 'Ammo for Rifles' },
+    smg_ammo                     = { name = 'smg_ammo', label = 'SMG Ammo (9mm)', weight = 500, type = 'item', image = 'smg_ammo.png', unique = false, useable = true, shouldClose = true, description = 'Ammo for Sub Machine Guns' },
+    shotgun_ammo                 = { name = 'shotgun_ammo', label = 'Shotgun Shells', weight = 500, type = 'item', image = 'shotgun_ammo.png', unique = false, useable = true, shouldClose = true, description = 'Ammo for Shotguns' },
+    mg_ammo                      = { name = 'mg_ammo', label = 'MG Ammo', weight = 1000, type = 'item', image = 'mg_ammo.png', unique = false, useable = true, shouldClose = true, description = 'Ammo for Machine Guns' },
+    snp_ammo                     = { name = 'snp_ammo', label = 'Sniper Ammo', weight = 1000, type = 'item', image = 'rifle_ammo.png', unique = false, useable = true, shouldClose = true, description = 'Ammo for Sniper Rifles' },
     emp_ammo                     = { name = 'emp_ammo', label = 'EMP Ammo', weight = 200, type = 'item', image = 'emp_ammo.png', unique = false, useable = true, shouldClose = true, description = 'Ammo for EMP Launcher' },
 
 
-    -- GCRP additional ammunition (aligned with existing weapon ammotype)
+    -- lcrp additional ammunition (aligned with existing weapon ammotype)
     flare_ammo                   = { name = 'flare_ammo', label = 'Flare Ammo', weight = 500, type = 'item', image = 'placeholder.png', unique = false, useable = true, shouldClose = true, description = 'Flare Ammo for compatible weapons' },
     rpg_ammo                     = { name = 'rpg_ammo', label = 'RPG Ammo', weight = 500, type = 'item', image = 'placeholder.png', unique = false, useable = true, shouldClose = true, description = 'RPG Ammo for compatible weapons' },
     grenadelauncher_ammo         = { name = 'grenadelauncher_ammo', label = 'Grenade Launcher Ammo', weight = 500, type = 'item', image = 'placeholder.png', unique = false, useable = true, shouldClose = true, description = 'Grenade Launcher Ammo for compatible weapons' },
@@ -338,7 +338,7 @@ QBCore.Shared.Items = {
     walkstick                    = { name = 'walkstick', label = 'Walking Stick', weight = 1000, type = 'item', image = 'walkstick.png', unique = false, useable = true, shouldClose = true, description = 'Walking stick for ya\'ll grannies out there.. HAHA' },
 
     -- Communication
-    phone                        = { name = 'phone', label = 'Phone', weight = 700, type = 'item', image = 'phone.png', unique = true, useable = false, shouldClose = false, description = 'Neat phone ya got there' },
+    phone                        = { name = 'phone', label = 'LC Phone', weight = 700, type = 'item', image = 'phone.png', unique = true, useable = true, shouldClose = true, description = 'LineCity Roleplay smartphone' },
     radio                        = { name = 'radio', label = 'Radio', weight = 2000, type = 'item', image = 'radio.png', unique = true, useable = true, shouldClose = true, description = 'You can communicate with this through a signal' },
     iphone                       = { name = 'iphone', label = 'iPhone', weight = 1000, type = 'item', image = 'iphone.png', unique = true, useable = true, shouldClose = true, description = 'Very expensive phone' },
     samsungphone                 = { name = 'samsungphone', label = 'Samsung S10', weight = 1000, type = 'item', image = 'samsungphone.png', unique = false, useable = false, shouldClose = true, description = 'Very expensive phone' },
@@ -397,70 +397,12 @@ QBCore.Shared.Items = {
     -- Crafting table's
     item_bench = {name = "item_bench", label = "Workbench", weight = 15000, type = "item", image = "workbench.png", unique = true, useable = true, shouldClose = false, combinable = nil, description = "A workbench to craft items."},
     attachment_bench = {name = "attachment_bench", label = "Attachment Workbench", weight = 15000, type = "item", image = "attworkbench.png", unique = true, useable = true, shouldClose = false, combinable = nil, description = "A workbench for crafting attachments."},
-
-
-    ['medicalbag'] = {
-        label = 'Medical Bag',
-        weight = 220,
-        stack = true,
-        description = "A comprehensive medical kit for treating injuries and ailments.",
-    },
-
-    ['bandage'] = {
-        label = 'Bandage',
-        weight = 100,
-        stack = true,
-        description = "A simple bandage used to cover and protect wounds.",
-    },
-
-    ['defibrillator'] = {
-        label = 'Defibrillator',
-        weight = 100,
-        stack = true,
-        description = "Used for reviving patients.",
-    },
-
-    ['tweezers'] = {
-        label = 'Tweezers',
-        weight = 100,
-        stack = true,
-        description = "Precision tweezers for safely removing foreign objects, such as bullets, from wounds.",
-    },
-
-    ['burncream'] = {
-        label = 'Burn Cream',
-        weight = 100,
-        stack = true,
-        description = "Specialized cream for treating and soothing minor burns and skin irritations.",
-    },
-
-    ['suturekit'] = {
-        label = 'Suture Kit',
-        weight = 100,
-        stack = true,
-        description = "A kit containing surgical tools and materials for stitching and closing wounds.",
-    },
-
-    ['icepack'] = {
-        label = 'Ice Pack',
-        weight = 200,
-        stack = true,
-        description = "An ice pack used to reduce swelling and provide relief from pain and inflammation.",
-    },
-
-    ['stretcher'] = {
-        label = 'Ice Pack',
-        weight = 200,
-        stack = true,
-        description = "An ice pack used to reduce swelling and provide relief from pain and inflammation.",
-    },
-
-    ['emstablet'] = {
-        label = 'Ems tablet',
-        weight = 200,
-        stack = true,
-        client = {
-            export = 'ars_ambulancejob.openDistressCalls'
-        }
-    },
+    medicalbag = { name = 'medicalbag', label = 'Medical Bag', weight = 500, type = 'item', image = 'medicalbag.png', unique = false, useable = false, shouldClose = true, description = 'Medical Bag' },
+    defibrillator = { name = 'defibrillator', label = 'Defibrillator', weight = 500, type = 'item', image = 'defibrillator.png', unique = false, useable = false, shouldClose = true, description = 'Defibrillator' },
+    tweezers = { name = 'tweezers', label = 'Tweezers', weight = 500, type = 'item', image = 'tweezers.png', unique = false, useable = false, shouldClose = true, description = 'Tweezers' },
+    burncream = { name = 'burncream', label = 'Burn Cream', weight = 500, type = 'item', image = 'burncream.png', unique = false, useable = false, shouldClose = true, description = 'Burn Cream' },
+    suturekit = { name = 'suturekit', label = 'Suture Kit', weight = 500, type = 'item', image = 'suturekit.png', unique = false, useable = false, shouldClose = true, description = 'Suture Kit' },
+    icepack = { name = 'icepack', label = 'Ice Pack', weight = 500, type = 'item', image = 'icepack.png', unique = false, useable = false, shouldClose = true, description = 'Ice Pack' },
+    stretcher = { name = 'stretcher', label = 'Stretcher', weight = 500, type = 'item', image = 'stretcher.png', unique = false, useable = false, shouldClose = true, description = 'Stretcher' },
+    emstablet = { name = 'emstablet', label = 'EMS Tablet', weight = 500, type = 'item', image = 'emstablet.png', unique = false, useable = false, shouldClose = true, description = 'EMS Tablet' },
 }

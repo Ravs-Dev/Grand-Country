@@ -9,6 +9,7 @@ local choosingSpawn = false
 local Houses = {}
 local cam = nil
 local cam2 = nil
+local lastPosition = nil
 
 -- Functions
 
@@ -61,35 +62,40 @@ local function openFirstAppearanceIfNeeded()
     end
 end
 
+-- Ambil posisi yang disimpan QBCore sebelum kamera spawn memindahkan ped.
+-- Mendukung posisi dalam table maupun JSON, heading bernama w atau a.
+local function ReadSavedPosition(position)
+    if type(position) == 'string' then
+        local ok, decoded = pcall(json.decode, position)
+        position = ok and decoded or nil
+    end
+    if not position then return nil end
+    local x, y, z = tonumber(position.x), tonumber(position.y), tonumber(position.z)
+    local heading = tonumber(position.w or position.a or position.heading or position.h) or 0.0
+    if not x or not y or not z or (x == 0 and y == 0 and z == 0) then return nil end
+    return vector4(x, y, z, heading)
+end
+
+local function GetSpawnCoords(location)
+    if location == 'last' then
+        return lastPosition or QB.Spawns.airport.coords
+    end
+    return QB.Spawns[location] and QB.Spawns[location].coords or nil
+end
+
 RegisterNetEvent('qb-spawn:client:setupSpawns', function(cData, new, apps)
     pendingFirstAppearance = new == true
-    if not new then
-        QBCore.Functions.TriggerCallback('qb-spawn:server:getOwnedHouses', function(houses)
-            local myHouses = {}
-            if houses ~= nil then
-                for i = 1, (#houses), 1 do
-                    myHouses[#myHouses + 1] = {
-                        house = houses[i].house,
-                        label = Houses[houses[i].house].adress,
-                    }
-                end
-            end
-
-            Wait(500)
-            SendNUIMessage({
-                action = 'setupLocations',
-                locations = QB.Spawns,
-                houses = myHouses,
-                isNew = new
-            })
-        end, cData.citizenid)
-    elseif new then
-        SendNUIMessage({
-            action = 'setupAppartements',
-            locations = apps,
-            isNew = new
-        })
-    end
+    -- Karakter baru/lama melihat empat pilihan. Lokasi terakhir dibaca dari data tersimpan.
+    -- Jika belum pernah spawn (karakter baru), Last Location memakai fallback Airport.
+    local playerData = QBCore.Functions.GetPlayerData()
+    lastPosition = (not new) and (ReadSavedPosition(cData and cData.position)
+        or ReadSavedPosition(playerData and playerData.position)) or nil
+    SendNUIMessage({
+        action = 'setupLocations',
+        locations = QB.Spawns,
+        houses = {},
+        isNew = new == true
+    })
 end)
 
 -- NUI Callbacks
@@ -120,44 +126,18 @@ local function SetCam(campos)
 end
 
 RegisterNUICallback('setCam', function(data, cb)
-    local location = tostring(data.posname)
-    local type = tostring(data.type)
+    local location = tostring(data.posname or '')
+    local spawn = QB.Spawns[location]
+    if not spawn then
+        cb('invalid_spawn')
+        return
+    end
     DoScreenFadeOut(200)
     Wait(500)
     DoScreenFadeIn(200)
-    if DoesCamExist(cam) then DestroyCam(cam, true) end
-    if DoesCamExist(cam2) then DestroyCam(cam2, true) end
-    if type == 'current' then
-        QBCore.Functions.GetPlayerData(function(PlayerData)
-            SetCam(PlayerData.position)
-        end)
-    elseif type == 'house' then
-        SetCam(Houses[location].coords.enter)
-    elseif type == 'normal' then
-        SetCam(QB.Spawns[location].coords)
-    elseif type == 'appartment' then
-        SetCam(Apartments.Locations[location].coords.enter)
-    end
-    cb('ok')
-end)
-
-RegisterNUICallback('chooseAppa', function(data, cb)
-    local ped = PlayerPedId()
-    local appaYeet = data.appType
-    SetDisplay(false)
-    DoScreenFadeOut(500)
-    Wait(5000)
-    TriggerServerEvent('apartments:server:CreateApartment', appaYeet, Apartments.Locations[appaYeet].label, true)
-    TriggerServerEvent('QBCore:Server:OnPlayerLoaded')
-    FreezeEntityPosition(ped, false)
-    RenderScriptCams(false, true, 500, true, true)
-    SetCamActive(cam, false)
-    DestroyCam(cam, true)
-    SetCamActive(cam2, false)
-    DestroyCam(cam2, true)
-    SetEntityVisible(ped, true)
-    Wait(500)
-    openFirstAppearanceIfNeeded()
+    if cam and DoesCamExist(cam) then DestroyCam(cam, true) end
+    if cam2 and DoesCamExist(cam2) then DestroyCam(cam2, true) end
+    SetCam(GetSpawnCoords(location))
     cb('ok')
 end)
 
@@ -181,49 +161,26 @@ local function PostSpawnPlayer(ped)
 end
 
 RegisterNUICallback('spawnplayer', function(data, cb)
-    local location = tostring(data.spawnloc)
-    local type = tostring(data.typeLoc)
-    local ped = PlayerPedId()
-    local PlayerData = QBCore.Functions.GetPlayerData()
-    local insideMeta = PlayerData.metadata['inside']
-    if type == 'current' then
-        PreSpawnPlayer()
-        QBCore.Functions.GetPlayerData(function(pd)
-            ped = PlayerPedId()
-            SetEntityCoords(ped, pd.position.x, pd.position.y, pd.position.z)
-            SetEntityHeading(ped, pd.position.a)
-            FreezeEntityPosition(ped, false)
-        end)
-
-        if insideMeta.house ~= nil then
-            local houseId = insideMeta.house
-            TriggerEvent('qb-houses:client:LastLocationHouse', houseId)
-        elseif insideMeta.apartment.apartmentType ~= nil or insideMeta.apartment.apartmentId ~= nil then
-            local apartmentType = insideMeta.apartment.apartmentType
-            local apartmentId = insideMeta.apartment.apartmentId
-            TriggerEvent('qb-apartments:client:LastLocationHouse', apartmentType, apartmentId)
-        end
-        TriggerServerEvent('QBCore:Server:OnPlayerLoaded')
-        PostSpawnPlayer()
-    elseif type == 'house' then
-        PreSpawnPlayer()
-        TriggerEvent('qb-houses:client:enterOwnedHouse', location)
-        TriggerServerEvent('QBCore:Server:OnPlayerLoaded')
-        TriggerServerEvent('qb-houses:server:SetInsideMeta', 0, false)
-        TriggerServerEvent('qb-apartments:server:SetInsideMeta', 0, 0, false)
-        PostSpawnPlayer()
-    elseif type == 'normal' then
-        local pos = QB.Spawns[location].coords
-        PreSpawnPlayer()
-        SetEntityCoords(ped, pos.x, pos.y, pos.z)
-        TriggerServerEvent('QBCore:Server:OnPlayerLoaded')
-        TriggerServerEvent('qb-houses:server:SetInsideMeta', 0, false)
-        TriggerServerEvent('qb-apartments:server:SetInsideMeta', 0, 0, false)
-        Wait(500)
-        SetEntityCoords(ped, pos.x, pos.y, pos.z)
-        SetEntityHeading(ped, pos.w)
-        PostSpawnPlayer()
+    local location = tostring(data.spawnloc or '')
+    local spawn = QB.Spawns[location]
+    if data.typeLoc ~= 'normal' or not spawn then
+        cb('invalid_spawn')
+        return
     end
+
+    local pos = GetSpawnCoords(location)
+    PreSpawnPlayer()
+    local ped = PlayerPedId()
+    RequestCollisionAtCoord(pos.x, pos.y, pos.z)
+    SetEntityCoords(ped, pos.x, pos.y, pos.z, false, false, false, false)
+    SetEntityHeading(ped, pos.w)
+    TriggerServerEvent('QBCore:Server:OnPlayerLoaded')
+    TriggerServerEvent('qb-houses:server:SetInsideMeta', 0, false)
+    TriggerServerEvent('qb-apartments:server:SetInsideMeta', 0, 0, false)
+    Wait(500)
+    SetEntityCoords(ped, pos.x, pos.y, pos.z, false, false, false, false)
+    SetEntityHeading(ped, pos.w)
+    PostSpawnPlayer()
     cb('ok')
 end)
 

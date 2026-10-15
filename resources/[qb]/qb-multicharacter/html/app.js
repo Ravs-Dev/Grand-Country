@@ -16,7 +16,7 @@ function openModal(type){
   $('#formArea').classList.toggle('hidden',type!=='create');
   $('#deleteArea').classList.toggle('hidden',type!=='delete');
   $('#creditsArea').classList.toggle('hidden',type!=='credits');
-  setText('modalEyebrow',type==='create'?'NEW LIFE':type==='delete'?'DANGER ZONE':'GCR');
+  setText('modalEyebrow',type==='create'?'NEW LIFE':type==='delete'?'DANGER ZONE':'LCRP');
   setText('modalHeading',type==='create'?'CREATE YOUR STORY':type==='delete'?'DELETE CHARACTER':'CREDITS');
   modal.classList.remove('hidden');
 }

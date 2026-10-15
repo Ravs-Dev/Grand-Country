@@ -216,7 +216,7 @@ end)
 RegisterNetEvent('qb-weapons:server:removeWeaponAmmoItem', function() end)
 
 local reloadCooldown = {}
-RegisterNetEvent('gcrp-ammo:server:requestReload', function(ammoSlot, weaponSlot, weaponName, ammoType, amount)
+RegisterNetEvent('lcrp-ammo:server:requestReload', function(ammoSlot, weaponSlot, weaponName, ammoType, amount)
     local src = source
     local player = exports['qb-core']:GetPlayer(src)
     if not player or type(ammoSlot) ~= 'number' or type(weaponSlot) ~= 'number' or
@@ -231,10 +231,10 @@ RegisterNetEvent('gcrp-ammo:server:requestReload', function(ammoSlot, weaponSlot
        not weaponInfo or weaponInfo.ammotype ~= ammoType then return end
     local config = Config.AmmoTypes[ammoItem.name]
     if not config or config.ammoType ~= ammoType or amount < 1 or amount > config.amount then return end
-    if not exports['qb-inventory']:RemoveItem(src, ammoItem.name, 1, ammoSlot, 'gcrp-ammo:reload') then return end
+    if not exports['qb-inventory']:RemoveItem(src, ammoItem.name, 1, ammoSlot, 'lcrp-ammo:reload') then return end
     reloadCooldown[src] = now
     TriggerClientEvent('qb-inventory:client:ItemBox', src, sharedItems[ammoItem.name], 'remove')
-    TriggerClientEvent('gcrp-ammo:client:applyReload', src, weaponName, weaponSlot, amount)
+    TriggerClientEvent('lcrp-ammo:client:applyReload', src, weaponName, weaponSlot, amount)
 end)
 
 AddEventHandler('playerDropped', function()

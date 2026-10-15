@@ -1,0 +1,651 @@
+:root {
+    --orange: #00d9ff;
+    --orange-bright: #67ecff;
+    --orange-soft: rgba(0, 217, 255, .20);
+    --white: #f7f7f7;
+    --muted: rgba(255, 255, 255, .64);
+    --danger: #ff4b4b;
+}
+
+* {
+    box-sizing: border-box;
+    user-select: none;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: transparent !important;
+    color: var(--white);
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+body {
+    pointer-events: none;
+}
+
+.hud {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity .16s ease;
+}
+
+.hud.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.hidden-card {
+    display: none !important;
+}
+
+/* ============================================================
+   RIGHT SIDE - IME STYLE, TEXT ONLY
+   No large square/card containers.
+   ============================================================ */
+.ime-info {
+    position: absolute;
+    top: 2.3vh;
+    right: 1.35vw;
+    width: min(24vw, 360px);
+    min-width: 275px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    text-align: right;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .78));
+}
+
+.ime-brand-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-bottom: 2px;
+}
+
+.ime-brand-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1;
+}
+
+.ime-brand-text strong {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 1.8px;
+}
+
+.ime-brand-text span {
+    margin-top: 4px;
+    color: var(--orange-bright);
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 4px;
+}
+
+.logo-box {
+    width: 54px;
+    height: 54px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+.server-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.ime-meta {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    color: rgba(255, 255, 255, .74);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    margin: 3px 0 4px;
+}
+
+.ime-meta #serverId {
+    color: var(--orange-bright);
+    font-weight: 900;
+}
+
+.ime-dot {
+    color: rgba(0, 217, 255, .95);
+}
+
+.ime-line {
+    width: 100%;
+    min-height: 27px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.ime-label {
+    min-width: 76px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1px;
+    color: var(--orange-bright);
+    font-size: 8px;
+    font-weight: 850;
+    letter-spacing: 1.15px;
+    text-align: left;
+    text-shadow: 0 0 7px rgba(0, 217, 255, .42);
+}
+
+.ime-icon {
+    width: 15px;
+    height: 22px;
+    flex: 0 0 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--orange-bright);
+    filter: drop-shadow(0 0 5px rgba(0, 217, 255, .58));
+}
+
+.ime-icon svg,
+.ammo-icon svg {
+    width: 21px;
+    height: 21px;
+    display: block;
+    fill: currentColor;
+}
+
+.ime-line > strong {
+    min-width: 0;
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: .2px;
+    text-align: right;
+}
+
+#cash,
+#bank,
+#playerCount {
+    color: #bff6ff;
+}
+
+.ammo-hud {
+    width: 100%;
+    min-height: 38px;
+    margin-top: 8px;
+    padding: 0 2px 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    border-left: 2px solid var(--orange);
+    background: linear-gradient(90deg, rgba(0, 217, 255, .14), rgba(0, 217, 255, 0) 72%);
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
+}
+
+.ammo-icon {
+    width: 28px;
+    height: 28px;
+    margin-right: 3px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--orange-bright);
+    filter: drop-shadow(0 0 5px rgba(0, 217, 255, .62));
+}
+
+.ammo-icon svg {
+    width: 19px;
+    height: 19px;
+}
+
+.ammo-label {
+    margin-right: auto;
+    color: rgba(255, 255, 255, .72);
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 1.7px;
+}
+
+#ammoClip {
+    color: #fff;
+    font-size: 21px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.ammo-divider,
+#ammoReserve {
+    color: rgba(255, 255, 255, .66);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.ammo-hud.empty #ammoClip,
+.ammo-hud.empty #ammoReserve {
+    color: rgba(255, 255, 255, .44);
+}
+
+/* ============================================================
+   LEFT BOTTOM - health/status near minimap
+   The old body/person card is completely removed.
+   ============================================================ */
+.status-stack {
+    position: absolute;
+    left: 1.35vw;
+    bottom: 20.2vh;
+    width: 20.5vw;
+    min-width: 270px;
+    max-width: 360px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .72));
+}
+
+.status-row {
+    min-height: 34px;
+    padding: 3px 7px 3px 3px;
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 0;
+}
+
+.status-badge {
+    width: 27px;
+    height: 27px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 2px solid rgba(0, 217, 255, .98);
+    color: #fff;
+    background: rgba(10, 10, 10, .22);
+    box-shadow: 0 0 7px rgba(0, 217, 255, .38);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.status-content {
+    min-width: 0;
+}
+
+.status-caption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 3px;
+    color: #fff;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: .7px;
+}
+
+.status-caption b {
+    color: rgba(255, 255, 255, .86);
+    font-size: 8px;
+}
+
+.bar-shell {
+    position: relative;
+    width: 100%;
+    height: 5px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, .10);
+}
+
+.bar-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #00aeea, #67ecff);
+    box-shadow: 0 0 7px rgba(0, 217, 255, .48);
+    transition: width .14s linear;
+}
+
+.armor-fill {
+    background: linear-gradient(90deg, #e6e6e6, #fff);
+    box-shadow: 0 0 6px rgba(255, 255, 255, .24);
+}
+
+.circle-status-wrap {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 5px;
+    padding-left: 1px;
+}
+
+.circle-status {
+    --value: 100;
+    --ring-color: #32ddff;
+    width: 56px;
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.circle-core {
+    position: relative;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: rgba(10, 10, 10, .24);
+    box-shadow: 0 0 7px rgba(0, 217, 255, .28);
+}
+
+.circle-core::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(var(--ring-color) calc(var(--value) * 1%), rgba(255, 255, 255, .12) 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));
+}
+
+.circle-core span {
+    position: relative;
+    z-index: 2;
+    color: rgba(255, 255, 255, .96);
+    font-size: 20px;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: 0;
+    filter: drop-shadow(0 0 4px rgba(50, 221, 255, .45));
+}
+
+/* Clean status icons only: percentage text and labels are intentionally hidden. */
+.circle-value,
+.circle-label {
+    display: none !important;
+}
+
+.circle-status.low { --ring-color: #67ecff; }
+.circle-status.critical,
+.circle-status.high { --ring-color: #ff4b4b; }
+.circle-status.active { --ring-color: #67ecff; }
+.circle-status.running { --ring-color: #fff; }
+
+/* MIC: sky blue idle, white when transmitting or PTT pressed. */
+#voiceCircle {
+    --ring-color: #32ddff;
+}
+
+#voiceCircle .mic-vector {
+    position: relative;
+    z-index: 2;
+    width: 23px;
+    height: 23px;
+    display: grid;
+    place-items: center;
+    color: #32ddff;
+    transition: color .10s ease, filter .10s ease, transform .10s ease;
+    filter: drop-shadow(0 0 5px rgba(50, 221, 255, .82));
+}
+
+#voiceCircle .mic-svg {
+    width: 21px;
+    height: 21px;
+    display: block;
+    fill: currentColor;
+}
+
+#voiceCircle.active {
+    --ring-color: #ffffff;
+}
+
+#voiceCircle.active .circle-core {
+    background: rgba(255, 255, 255, .10);
+    box-shadow: 0 0 12px rgba(255, 255, 255, .52);
+}
+
+#voiceCircle.active .mic-vector {
+    color: #ffffff;
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, .95));
+    transform: scale(1.06);
+}
+
+#voiceCircle.active .circle-value,
+#voiceCircle.active .circle-label {
+    color: #ffffff;
+}
+
+/* ============================================================
+   VEHICLE HUD - keeps the integrated photo-inspired speedometer.
+   ============================================================ */
+.vehicle-hud {
+    position: absolute;
+    left: 50%;
+    bottom: 2.2vh;
+    width: 230px;
+    height: 150px;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.vehicle-speedo {
+    position: relative;
+    width: 230px;
+    height: 150px;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .82));
+}
+
+.vehicle-dial {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.dial-track,
+.dial-rpm {
+    fill: none;
+    stroke-linecap: round;
+    stroke-width: 5;
+}
+
+.dial-track {
+    stroke: rgba(255, 255, 255, .16);
+}
+
+.dial-rpm {
+    stroke: #9dff35;
+    stroke-dasharray: 4 96;
+    transition: stroke-dasharray .11s linear, stroke .16s ease;
+    filter: drop-shadow(0 0 4px rgba(157, 255, 53, .36));
+}
+
+.dial-rpm.hot {
+    stroke: #ffd72e;
+}
+
+.dial-rpm.red {
+    stroke: #ff5252;
+}
+
+.dial-ticks line {
+    stroke: rgba(255, 255, 255, .74);
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.dial-numbers text {
+    fill: rgba(255, 255, 255, .78);
+    font-size: 8px;
+    font-weight: 800;
+    text-anchor: middle;
+    dominant-baseline: middle;
+}
+
+.vehicle-speed-center {
+    position: absolute;
+    left: 50%;
+    top: 58px;
+    transform: translateX(-50%);
+    width: 126px;
+    text-align: center;
+}
+
+.vehicle-speed-value {
+    color: #fff;
+    font-size: 44px;
+    font-weight: 850;
+    line-height: .92;
+    letter-spacing: -2px;
+}
+
+.vehicle-speed-unit {
+    margin-top: 5px;
+    color: rgba(255, 255, 255, .60);
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+}
+
+.vehicle-bottom-row {
+    position: absolute;
+    left: 28px;
+    right: 28px;
+    bottom: 3px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 7px;
+}
+
+.vehicle-photo-status {
+    min-width: 0;
+    text-align: center;
+}
+
+.vehicle-photo-status > span {
+    display: block;
+    color: rgba(255, 255, 255, .54);
+    font-size: 6px;
+    font-weight: 900;
+    letter-spacing: .8px;
+}
+
+.vehicle-photo-status > b {
+    display: block;
+    margin-top: 2px;
+    color: rgba(255, 255, 255, .84);
+    font-size: 7px;
+    font-weight: 900;
+}
+
+.vehicle-status-track {
+    position: relative;
+    height: 3px;
+    margin-top: 3px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, .13);
+}
+
+.vehicle-status-track > i {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 100%;
+    border-radius: inherit;
+    background: #9dff35;
+    transition: width .13s linear, background .15s ease;
+}
+
+#engineStatus .vehicle-status-track > i {
+    background: #fff;
+}
+
+#beltStatus .vehicle-status-track > i {
+    width: 22%;
+    background: #ff5d5d;
+}
+
+#beltStatus.on .vehicle-status-track > i {
+    width: 100%;
+    background: #9dff35;
+}
+
+.vehicle-photo-status.low > b {
+    color: #ffd45c;
+}
+
+.vehicle-photo-status.critical > b {
+    color: #ff5d5d;
+}
+
+.vehicle-photo-status.critical .vehicle-status-track > i {
+    background: #ff5d5d;
+}
+
+@media (max-width: 1366px) {
+    .ime-info {
+        width: 295px;
+        min-width: 250px;
+    }
+
+    .ime-brand-text strong {
+        font-size: 11px;
+    }
+
+    .status-stack {
+        width: 275px;
+        min-width: 255px;
+        bottom: 20.8vh;
+    }
+
+    .vehicle-hud,
+    .vehicle-speedo {
+        width: 205px;
+        height: 134px;
+    }
+
+    .vehicle-speed-center {
+        top: 52px;
+    }
+
+    .vehicle-speed-value {
+        font-size: 39px;
+    }
+
+    .vehicle-bottom-row {
+        left: 25px;
+        right: 25px;
+        bottom: 1px;
+    }
+}

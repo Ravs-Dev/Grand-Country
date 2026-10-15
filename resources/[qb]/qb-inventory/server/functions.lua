@@ -117,10 +117,20 @@ function SaveInventory(source, offline)
                 }
             end
         end
-        MySQL.prepare('UPDATE players SET inventory = ? WHERE citizenid = ?', { json.encode(ItemsJson), PlayerData.citizenid })
+        local affectedRows = MySQL.update.await('UPDATE players SET inventory = ? WHERE citizenid = ?', { json.encode(ItemsJson), PlayerData.citizenid })
+        if affectedRows == nil then
+            print(('[qb-inventory] Failed to save inventory for citizenid %s'):format(tostring(PlayerData.citizenid)))
+            return false
+        end
     else
-        MySQL.prepare('UPDATE players SET inventory = ? WHERE citizenid = ?', { '[]', PlayerData.citizenid })
+        local affectedRows = MySQL.update.await('UPDATE players SET inventory = ? WHERE citizenid = ?', { '[]', PlayerData.citizenid })
+        if affectedRows == nil then
+            print(('[qb-inventory] Failed to clear/save inventory for citizenid %s'):format(tostring(PlayerData.citizenid)))
+            return false
+        end
     end
+
+    return true
 end
 
 exports('SaveInventory', SaveInventory)

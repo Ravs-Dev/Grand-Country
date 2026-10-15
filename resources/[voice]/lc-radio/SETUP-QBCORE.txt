@@ -1,0 +1,31 @@
+LC-RADIO - INSTALASI QBCORE / txAdmin
+
+1) Pastikan folder resource bernama lc-radio persis, tidak dibungkus folder lain.
+2) Wajib instal resource terpisah: qb-core, pma-voice, FB_Lib (minimal 3.14.0), bl_bridge (minimal 1.2.2). Dependensi tidak ada dalam ZIP ini.
+3) Di server.cfg, sebelum ensure bl_bridge (dan sebelum ensure lc-radio), atur:
+setr bl:framework "qb"
+setr bl:inventory "qb"
+setr bl:context "ox"
+setr bl:target "ox"
+setr bl:progressbar "ox"
+setr bl:radial "qb"
+setr bl:notify "qb"
+setr bl:textui "ox"
+
+Sesuaikan opsi modul dengan resource yang BENAR-BENAR terpasang. Contoh di atas mengasumsikan qb-inventory, ox_lib, ox_target, qb-radialmenu, dan QBCore. Jika berbeda, baca README bl_bridge.
+
+4) Ensure dengan urutan seperti berikut (gabungkan dengan existing cfg, jangan menduplikasi):
+ensure qb-core
+ensure ox_lib
+ensure pma-voice
+ensure qb-inventory
+ensure ox_target
+ensure FB_Lib
+ensure bl_bridge
+ensure lc-radio
+
+5) Jangan jalankan radio versi kedua bersamaan jika keduanya mendaftarkan item yang sama.
+6) Gunakan `refresh` dan `ensure lc-radio` lewat txAdmin console. Apabila masih gagal, kirim log mulai dari baris `Couldn't start resource lc-radio`, `Could not find dependency`, atau `SCRIPT ERROR`.
+7) txAdmin restart: pastikan ini server.cfg yang AKTIF pada txAdmin profile/recipe, bukan file konfigurasi cadangan.
+
+Perubahan ZIP: perbaikan penggunaan Lua optional chaining (?.) di client/function.lua dan server/main.lua menjadi ekspresi Lua biasa, serta deklarasi dependency qb-core. Semua aset UI asli tetap disertakan.

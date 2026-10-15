@@ -1,0 +1,1 @@
+import{d as t,o as a,h as n,_ as s,bf as r,w as p,bh as c}from"./sky-main-bEnAYHXX.js";const f=t({inheritAttrs:!1,__name:"SkyToolbarPane",props:{component:{default:"div"}},setup(o){return(e,l)=>(a(),n(s,r({component:o.component},e.$attrs,{class:"sky-toolbar-pane"}),{default:p(()=>[c(e.$slots,"default")]),_:3},16,["component"]))}});export{f as _};

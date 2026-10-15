@@ -34,7 +34,14 @@ QBCore.Commands.Add('giveitem', 'Give An Item (Admin Only)', { { name = 'id', he
             end
 
             if AddItem(id, itemData['name'], amount, false, info, 'give item command') then
-                QBCore.Functions.Notify(source, Lang:t('notify.yhg') .. GetPlayerName(id) .. ' ' .. amount .. ' ' .. itemData['name'] .. '', 'success')
+                -- Persist admin-given items immediately so they survive reconnects.
+                local saved = SaveInventory(id)
+                if not saved then
+                    print(('[qb-inventory] WARNING: /giveitem added %s x%s to ID %s but database save failed'):format(itemData['name'], amount, id))
+                    QBCore.Functions.Notify(source, 'Item was added, but inventory database save failed. Check server console.', 'error')
+                else
+                    QBCore.Functions.Notify(source, Lang:t('notify.yhg') .. GetPlayerName(id) .. ' ' .. amount .. ' ' .. itemData['name'] .. '', 'success')
+                end
                 TriggerClientEvent('qb-inventory:client:ItemBox', id, itemData, 'add', amount)
                 if Player(id).state.inv_busy then TriggerClientEvent('qb-inventory:client:updateInventory', id) end
             else

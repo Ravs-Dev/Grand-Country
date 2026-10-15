@@ -1,0 +1,3 @@
+Source commit: 4f548fac8b819c6f73f9c71e1c62e376b82943a0
+Source: https://github.com/sky-systems/sky_phone/tree/4f548fac8b819c6f73f9c71e1c62e376b82943a0
+Source archive: https://github.com/sky-systems/sky_phone/archive/4f548fac8b819c6f73f9c71e1c62e376b82943a0.zip
