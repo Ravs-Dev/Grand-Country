@@ -10,7 +10,7 @@
 Config.Media = {
     -- Create or sign in to an account at https://developers.giphy.com/, open
     -- the Developer Dashboard, choose "Create an API Key", and paste it here.
-    GiphyApiKey = "",
+    GiphyApiKey = "fzkm6BTcPNa5tWab6B57zaKUJwbnRNzo",
     GifPageSize = 24,
     GifRating = "pg-13",
     UrlMaxLength = 2048,
@@ -20,7 +20,7 @@ Config.Media = {
     -- then open Dashboard > Tokens and create a token with Media access. Keep
     -- this server-only token private and paste it here.
     FiveManage = {
-        ApiKey = "",
+        ApiKey = "VMpTQczDEFVinrgjySI9bKCWKQmHwYxN",
         BaseUrl = "https://api.fivemanage.com/api/v3/file",
         RequestTimeoutMs = 10000,
         UploadTimeoutMs = 25000,
