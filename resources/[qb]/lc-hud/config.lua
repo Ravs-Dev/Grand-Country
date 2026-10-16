@@ -1,6 +1,6 @@
 Config = {}
 
-Config.ServerName = 'Grand Country Roleplay'
+Config.ServerName = 'LineCity Roleplay'
 
 -- HUD refresh. Health/stamina are sampled fast enough to react to falls/vehicle impacts.
 Config.RefreshRate = 100

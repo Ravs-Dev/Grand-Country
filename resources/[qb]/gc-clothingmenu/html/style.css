@@ -75,12 +75,12 @@
 }
 
 .wrapper > .clothing > .row > .hex > span {
-    font-size: 6vw; color: #ffbb00; line-height: 0;
+    font-size: 6vw; color: #00fbff; line-height: 0;
 }
 
 .wrapper > .clothing > .row > .hex > span.active {
-    color: #ffbb00;
-    filter: drop-shadow(0 0 1vw #ffbb00);
+    color: #00fbff;
+    filter: drop-shadow(0 0 1vw #00fbff);
 }
 
 .wrapper > .clothing > .row > .hex > img {
